@@ -2,7 +2,9 @@
 
 A free game for kids (about 2nd grade) about how the body learns to fight germs. You play Luko, a clay white blood cell who gulps germs and learns their shapes so the body is ready next time.
 
-**Play:** open the GitHub Pages link for this repo on a phone or tablet held sideways, or on a computer.
+**Play:** open the GitHub Pages link for this repo on a phone or tablet (upright or sideways), or on a computer.
+
+**Full screen:** on Android, iPad and computers, tap the full-screen button at the top right (phones and tablets go full screen when you tap Play). iPhone Safari doesn't let web pages hide its address bar, so on iPhone tap Share, then **Add to Home Screen**, and open Luko from the new icon. It runs full screen from there.
 
 ## How to play
 - Touch the screen and slide to swim (arrow keys or WASD on a computer).

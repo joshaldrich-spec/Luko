@@ -2,10 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#05131c">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Luko">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script>window.LUKO_PWA = true;</script>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Luko: a playtest build of a free claymation game for kids about how the body learns to fight germs.">
 <title>Luko Glow Tide</title>
@@ -27,7 +32,8 @@
   color-scheme:dark;
 }
 [hidden]{display:none!important}
-html,body{height:100%;margin:0;background:var(--ink);color:var(--text);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--text);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-touch-callout:none;-webkit-text-size-adjust:100%}
+button{touch-action:manipulation}
 #gl{position:fixed;inset:0;display:block;z-index:0;background:var(--ink)}
 #game{position:fixed;inset:0;display:block;touch-action:none;z-index:1;background:transparent}
 .iconbtn[aria-pressed="true"]{background:rgba(255,210,122,0.18);border-color:rgba(255,210,122,0.6);color:var(--gold)}
@@ -108,6 +114,9 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 <div id="insetProbe"></div>
 
 <div class="controls" id="controls" hidden>
+  <button class="iconbtn" id="fullBtn" type="button" aria-label="Full screen" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
   <button class="iconbtn" id="fxBtn" type="button" aria-pressed="true" aria-label="Turn effects off">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 2l1.9 5.6 5.6 1.9-5.6 1.9L11 17l-1.9-5.6L3.5 9.5l5.6-1.9z"/><path d="M18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>
   </button>
@@ -143,7 +152,8 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
       <li><b>3</b><span>Eat 5 and EXPLODE to gobble them all!</span></li>
     </ul>
     <button class="btn" id="playBtn" type="button">Play</button>
-    <p class="note" id="startNote">Turn your sound on and hold the phone sideways. On a computer: arrow keys swim, Space chomps, E explodes.</p>
+    <p class="note" id="startNote">Turn your sound on! Play upright or sideways. On a computer: arrow keys swim, Space chomps, E explodes.</p>
+    <p class="note" id="homeTip" hidden>For full screen on iPhone: tap Share, then <b>Add to Home Screen</b>, and open Luko from there.</p>
   </div>
 </div>
 
@@ -182,7 +192,7 @@ const cv = document.getElementById("game");   // HUD and touch surface (2D)
 const topCtx = cv.getContext("2d");
 let cx = topCtx;
 const glc = document.getElementById("gl");    // the world, drawn entirely on the GPU
-let R = null, rs = 1, fxOn = true;
+let R = null, rs = 1, fxOn = true, fullVisible = false;
 let vw = 0, vh = 0, dpr = 1, unit = 60, hs = 1;
 let insets = { t: 0, r: 0, b: 0, l: 0 };
 
@@ -196,7 +206,8 @@ function resize() {
   cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
   cv.style.width = vw + "px"; cv.style.height = vh + "px";
   const m = Math.min(vw, vh);
-  unit = Math.max(32, Math.min(80, m / 8.8));   // a touch zoomed out, for more room around Luko
+  const upright = vh > vw * 1.1;
+  unit = Math.max(30, Math.min(80, m / (upright ? 9.4 : 8.8)));   // zoomed out a touch for room around Luko; a bit more when held upright
   hs = Math.max(0.75, Math.min(1.25, m / 460));
   readInsets();
   if (R) R.resize();
@@ -1310,7 +1321,10 @@ function drawHUD() {
   else cx.arc(bx, by + 4.5 * hs, 2.6 * hs, 0, TAU);
   cx.stroke();
   // sun-to-moon arc
-  const ax = vw / 2, ay = insets.t + 52 * hs, ar = 40 * hs, prog = clamp(S.t / DAY_LEN, 0, 1);
+  const ar = 40 * hs, ay = insets.t + 52 * hs, prog = clamp(S.t / DAY_LEN, 0, 1);
+  const nBtn = fullVisible ? 4 : 3, ctrlLeft = vw - insets.r - 12 - nBtn * 44 - (nBtn - 1) * 8;
+  let ax = vw / 2;
+  if (ax + ar + 16 * hs > ctrlLeft - 8) ax = tx + tw + 24 * hs + ar + 12 * hs;
   cx.lineCap = "round";
   cx.strokeStyle = "rgba(255,255,255,0.14)"; cx.lineWidth = 7 * hs; cx.beginPath(); cx.arc(ax, ay, ar, Math.PI, TAU); cx.stroke();
   const ag = cx.createLinearGradient(ax - ar, 0, ax + ar, 0); ag.addColorStop(0, "#ffd27a"); ag.addColorStop(1, "#b8b4ff");
@@ -1485,6 +1499,7 @@ function endDay(rest) {
 }
 function startDay(keep) {
   initAudio();
+  if (coarse && !standalone) enterFS();
   if (keep) S.day += 1;
   resetDay(keep);
   $("startScreen").hidden = true; $("endScreen").hidden = true; $("pauseScreen").hidden = true; $("controls").hidden = false; $("actions").hidden = false;
@@ -1521,6 +1536,38 @@ $("fxBtn").addEventListener("click", () => {
   $("fxBtn").setAttribute("aria-label", fxOn ? "Turn effects off" : "Turn effects on");
   toast(fxOn ? "Effects on" : "Effects off");
 });
+
+/* full screen: a button (and automatic on Play for phones and tablets) wherever the browser allows it.
+   iPhone Safari doesn't let pages hide its bars, so there the start card suggests Add to Home Screen instead. */
+const docEl = document.documentElement;
+const fsOK = !!((docEl.requestFullscreen || docEl.webkitRequestFullscreen) && (document.fullscreenEnabled || document.webkitFullscreenEnabled));
+const inFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches;
+const coarse = matchMedia("(pointer: coarse)").matches;
+function enterFS() {
+  if (!fsOK || inFS()) return;
+  try { const f = docEl.requestFullscreen || docEl.webkitRequestFullscreen, r = f.call(docEl, { navigationUI: "hide" }); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+}
+function exitFS() {
+  try { const f = document.exitFullscreen || document.webkitExitFullscreen, r = f && f.call(document); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+}
+fullVisible = fsOK && !standalone;
+$("fullBtn").hidden = !fullVisible;
+$("fullBtn").addEventListener("click", () => (inFS() ? exitFS() : enterFS()));
+const onFS = () => { $("fullBtn").setAttribute("aria-pressed", String(inFS())); $("fullBtn").setAttribute("aria-label", inFS() ? "Leave full screen" : "Full screen"); setTimeout(resize, 60); };
+document.addEventListener("fullscreenchange", onFS); document.addEventListener("webkitfullscreenchange", onFS);
+if (window.LUKO_PWA && !fsOK && !standalone && /iPhone|iPod/.test(navigator.userAgent)) $("homeTip").hidden = false;
+
+/* no zooming: double taps (mashing CHOMP) and pinches would otherwise zoom the whole page on phones */
+for (const id of ["chompBtn", "boomBtn"]) $(id).addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", (e) => {
+  const now = Date.now(), quick = now - lastTouchEnd < 380;
+  lastTouchEnd = now;
+  if (quick && S.running && !S.over && !S.paused && !(e.target.closest && e.target.closest(".iconbtn"))) e.preventDefault();
+}, { passive: false });
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
 for (let i = 0; i < 5; i++) spawnGerm(i % 3);
 requestAnimationFrame(frame);
