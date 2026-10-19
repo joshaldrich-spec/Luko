@@ -90,6 +90,11 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 #boomTip{bottom:116px;background:#ff8fc4;color:#3d0a24}
 .actions.has-sneeze #chompTip{right:calc(100% + 86px)}
 #boomTip::after{border-left-color:#ff8fc4}
+#sneezeTip{right:calc(100% + 86px);bottom:16px;background:#8ff0d2;color:#0f4a3d}
+#sneezeTip::after{border-left-color:#8ff0d2}
+#sneezeBtn.urge{animation:throb .62s ease-in-out infinite;box-shadow:0 5px 0 #1d7a63,0 0 28px rgba(143,240,210,.95)}
+.btn.ghost.can{border-color:var(--gold);color:var(--gold);box-shadow:0 0 22px rgba(255,210,122,.35);animation:throb 1.2s ease-in-out infinite}
+.linkbtn{background:none;border:none;padding:4px 8px;font:600 14px/1 var(--display);color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 @keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 @keyframes nope{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @keyframes poke{0%,100%{transform:translateX(0)}50%{transform:translateX(-7px)}}
@@ -128,9 +133,13 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 @media (max-width:520px){.shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-height:520px){.card.shop{gap:6px;padding:10px 14px 12px}.item{padding:5px 5px 6px;gap:1px}.item small{display:none}.item canvas{height:40px;width:58px}.purse{font-size:21px;padding:5px 12px 3px}#shopNote{display:none}}
 
-@media (prefers-reduced-motion: reduce){#boomBtn.ready,.tip,#boomBtn.nope{animation:none}}
+@media (prefers-reduced-motion: reduce){#boomBtn.ready,.tip,#boomBtn.nope,#sneezeBtn.urge,.btn.ghost.can{animation:none}}
 @media (max-height: 520px){
   .card{padding:14px 18px 16px;gap:8px;width:min(560px,100%)}
+  #endHint{display:none}
+  .mem{padding:6px 8px 5px;min-width:72px}
+  .mem canvas{width:46px;height:48px}
+  #endScreen h2{font-size:30px}
   #hero{width:118px;height:88px}
   h1{font-size:46px}
   .how{font-size:14px;gap:3px}
@@ -176,6 +185,7 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 <div class="actions" id="actions" hidden>
   <div class="tip" id="chompTip" hidden>Tap to CHOMP!</div>
   <div class="tip" id="boomTip" hidden>EXPLODE!</div>
+  <div class="tip" id="sneezeTip" hidden>Sneeze them away!</div>
   <button class="act" id="boomBtn" type="button" aria-label="Explode to eat every germ nearby">
     <canvas id="boomIcon" width="128" height="104" aria-hidden="true"></canvas>
   </button>
@@ -191,7 +201,7 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 
 <div class="overlay" id="startScreen">
   <div class="card">
-    <p class="eyebrow">Playtest · v0.9</p>
+    <p class="eyebrow">Playtest · v0.10</p>
     <div class="hero"><canvas id="hero" aria-label="Luko gulping a germ"></canvas><h1>Luko</h1></div>
     <ul class="how">
       <li><b>1</b><span>Slide your finger to swim.</span></li>
@@ -220,9 +230,10 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
     <p id="endCoins" hidden></p>
     <p class="note" id="endHint">Next day, Luko's antibodies for these germs are ready from the first second.</p>
     <div class="row">
-      <button class="btn" id="nextBtn" type="button">Night Shop</button>
-      <button class="btn ghost" id="freshBtn" type="button">Start over</button>
+      <button class="btn" id="nextBtn" type="button">Next day</button>
+      <button class="btn ghost" id="shopBtn" type="button"><span class="coin"></span> <span id="shopBtnText">Night Shop</span></button>
     </div>
+    <button class="linkbtn" id="freshBtn" type="button">Start over from Day 1</button>
   </div>
 </div>
 
@@ -421,7 +432,7 @@ const S = {
   germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [],
   meter: [0, 0, 0], learned: [false, false, false], memory: [false, false, false], met: [false, false, false],
   sick: 0, restT: 0, spawnT: 0, splitT: 6, fireT: [0, 0, 0], rippleT: 0,
-  charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, chomps: 0, booms: 0, readyShown: false, minis: [],
+  charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, chomps: 0, booms: 0, readyShown: false, crowdT: 0, minis: [],
   coins: [], dayCoins: 0, coinPop: 0, coinStreak: 0, coinStreakT: 0, sneezes: 0, sneeze: null, blown: []
 };
 
@@ -837,6 +848,12 @@ function update(dt) {
   updateBoom(dt);
   updateMinis(dt);
   updateCoins(dt);
+  // how long a crowd has been sitting there while EXPLODE is ready (that's when we point at it)
+  if (S.charge >= 1 && !S.boom) {
+    let n = 0; for (const g of S.germs) if (Math.hypot(g.x - L.x, g.y - L.y) < NET_R) n++;
+    S.crowdT = n >= 4 ? S.crowdT + dt : Math.max(0, S.crowdT - dt * 2);
+    if (Math.random() < dt * 9) S.parts.push({ x: L.x + rand(-0.4, 0.4), y: L.y + rand(-0.2, 0.2), vx: rand(-0.3, 0.3), vy: rand(-0.9, -0.4), life: 0.6, max: 0.6, size: rand(0.05, 0.09), rgb: "255,143,196", kind: Math.random() < 0.4 ? "star" : "dot" });
+  } else S.crowdT = 0;
   updateSneeze(dt);
   S.shake = Math.max(0, S.shake - dt); S.white = Math.max(0, S.white - dt);
   if (S.word) { S.word.t += dt; if (S.word.t > S.word.max) S.word = null; }
@@ -1106,6 +1123,12 @@ function queueFloorGlows() {
   // a faint ring shows how far CHOMP reaches, and the germ it would grab gets a bright target ring
   const ra = 0.1 + 0.04 * Math.sin(T * 3), R0 = REACH / 0.88;
   if (!S.boom) ground("ring", S.L.x, S.L.y, 0.02, R0, R0, 0.51, 1, 0.93, ra);
+  // EXPLODE ready: a pink pulse around Luko himself
+  if (S.charge >= 1 && !S.boom) {
+    const k = (T * 1.6) % 1, rp = (1.0 + k * 1.6) / 0.88;
+    ground("ring", S.L.x, S.L.y, 0.025, rp, rp, 1, 0.45, 0.75, 0.75 * (1 - k));
+    ground("soft", S.L.x, S.L.y, 0.02, 1.1, 1.1, 1, 0.4, 0.7, 0.35 + 0.15 * Math.sin(T * 8));
+  }
   const tg = S.target;
   if (tg && S.germs.includes(tg)) {
     const r = TYPES[tg.type].r * 1.9 / 0.88, p = 0.75 + 0.25 * Math.sin(T * 10);
@@ -1619,6 +1642,20 @@ function drawHUD() {
     if (atlasReady) drawSpr(cx, atlasImg, "tok" + i, x, my2, (15 * hs) / 92);
     cx.globalAlpha = 1;
   }
+  // a bobbing callout over Luko when there's a crowd to EXPLODE (or a sneeze would save the day)
+  if (!S.word && !S.boom && !S.sneeze) {
+    const sick = !!SAVE.up.sneeze && S.sneezes > 0 && S.sick > 0.6;
+    const txt = S.charge >= 1 && S.crowdT > 1 ? "EXPLODE!" : sick ? "AH-CHOO?" : null;
+    if (txt) {
+      const p = project(S.L.x, S.L.y, LUKO_H + BODY_U + 0.55), s = 1 + 0.08 * Math.sin(T * 9);
+      cx.save(); cx.translate(p[0], p[1] + Math.sin(T * 5) * 4 * hs); cx.scale(s, s);
+      cx.font = `800 ${Math.round(20 * hs)}px "Baloo 2", "Arial Rounded MT Bold", sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
+      const w = cx.measureText(txt).width + 22 * hs, h = 30 * hs;
+      cx.fillStyle = txt === "EXPLODE!" ? "#ff8fc4" : "#8ff0d2"; roundRect(-w / 2, -h / 2, w, h, h / 2); cx.fill();
+      cx.fillStyle = txt === "EXPLODE!" ? "#3d0a24" : "#0f4a3d"; cx.fillText(txt, 0, 1.5 * hs);
+      cx.restore();
+    }
+  }
   // GOBBLE ×7! over Luko after an EXPLODE
   if (S.word) {
     const w = S.word, k = w.t / w.max, p = project(S.L.x, S.L.y, LUKO_H + BODY_U + 1.0);
@@ -1647,7 +1684,7 @@ function drawHUD() {
   updateButtons();
 }
 // keep the DOM buttons in step with the game (only touch the DOM when something changed)
-const UI = { pips: -1, ready: null, chompTip: null, boomTip: null, sneeze: null };
+const UI = { pips: -1, ready: null, chompTip: null, boomTip: null, sneeze: null, urge: null, sneezeTip: null };
 function updateButtons() {
   const pips = Math.round(S.charge / CHARGE_PER), ready = S.charge >= 1 && !S.boom;
   if (pips !== UI.pips) { UI.pips = pips; $("boomBtn").style.setProperty("--p", String(Math.min(1, pips * CHARGE_PER))); }
@@ -1655,8 +1692,13 @@ function updateButtons() {
   if (sz !== UI.sneeze) { UI.sneeze = sz; $("sneezeBtn").hidden = sz < 0; $("actions").classList.toggle("has-sneeze", sz >= 0); $("sneezeUses").textContent = String(Math.max(0, sz)); $("sneezeBtn").classList.toggle("empty", sz === 0); }
   if (ready !== UI.ready) { UI.ready = ready; $("boomBtn").classList.toggle("ready", ready); }
   const ct = S.chomps < 3 && !!S.target && !S.boom;
-  const bt = ready && S.booms < 2;
-  const ctShow = ct && !bt;   // one tip at a time
+  const bt = ready && (S.booms < 3 || S.crowdT > 2);
+  // the Big Sneeze nudges when the body is getting sick and a sneeze is left
+  const urge = !!SAVE.up.sneeze && S.sneezes > 0 && S.sick > 0.5 && !S.sneeze && !S.boom;
+  if (urge !== UI.urge) { UI.urge = urge; $("sneezeBtn").classList.toggle("urge", urge); }
+  const st = urge && !bt;
+  if (st !== UI.sneezeTip) { UI.sneezeTip = st; $("sneezeTip").hidden = !st; }
+  const ctShow = ct && !bt && !st;   // one tip at a time
   if (ctShow !== UI.chompTip) { UI.chompTip = ctShow; $("chompTip").hidden = !ctShow; }
   if (bt !== UI.boomTip) { UI.boomTip = bt; $("boomTip").hidden = !bt; }
 }
@@ -1801,7 +1843,11 @@ function endDay(rest) {
   });
   $("endHint").hidden = !saved;
   $("endCoins").hidden = false;
-  $("endCoins").innerHTML = S.dayCoins ? `<span class="coin"></span> You found <b>${S.dayCoins}</b> coins today!` : "Explode germs to find coins!";
+  // the Night Shop is optional: the button glows when there's something you can afford
+  const canBuy = SHOP.some((it) => SAVE.up[it.id] < it.prices.length && SAVE.coins >= it.prices[SAVE.up[it.id]]);
+  $("endCoins").innerHTML = (S.dayCoins ? `<span class="coin"></span> You found <b>${S.dayCoins}</b> coins today!` : "EXPLODE germs to find coins!") + (canBuy ? " You can buy a power-up." : "");
+  $("shopBtnText").textContent = `${SAVE.coins} · Night Shop`;
+  $("shopBtn").classList.toggle("can", canBuy);
   writeSave();
   $("endScreen").hidden = false; $("controls").hidden = true; $("actions").hidden = true; toastEl.hidden = true;
   sfx.day();
@@ -1820,7 +1866,8 @@ function setPaused(p) {
   if (AC) p ? AC.suspend() : AC.resume();
 }
 $("playBtn").addEventListener("click", () => startDay(false));
-$("nextBtn").addEventListener("click", () => openShop(false));
+$("nextBtn").addEventListener("click", () => startDay(true));
+$("shopBtn").addEventListener("click", () => openShop(false));
 // the Night Shop: big picture cards, tap to buy; upgrades are permanent and saved on this device
 let shopFromStart = false;
 function openShop(fromStart) {

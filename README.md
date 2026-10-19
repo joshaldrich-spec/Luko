@@ -1,6 +1,6 @@
 # Luko: playtest build
 
-Current version: **v0.9**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
+Current version: **v0.10**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
 
 A free game for kids (about 2nd grade) about how the body learns to fight germs. You play Luko, a clay white blood cell who gulps germs and learns their shapes so the body is ready next time.
 
@@ -12,7 +12,7 @@ A free game for kids (about 2nd grade) about how the body learns to fight germs.
 - Touch the screen and slide to swim (arrow keys or WASD on a computer).
 - Swim close to a germ and tap the gold **CHOMP** button to eat it (Space on a computer).
 - Every germ you eat fills the pink **EXPLODE** button. When it glows, tap it: Luko bursts into a sticky net and gobbles every germ nearby (E on a computer). Real white blood cells really do throw sticky nets at germs.
-- Every germ the EXPLODE gobbles drops a coin. At night, spend coins in the **Night Shop** on power-ups that last forever: Big Chomp, Fast Swim, Quick Explode, Big Net, Mini Luko, and the **Big Sneeze** (AH-CHOO! blasts every germ off the screen; Q on a computer). Coins and power-ups are saved on your device.
+- Every germ the EXPLODE gobbles drops a coin. After each day, you can spend coins in the optional **Night Shop** on power-ups that last forever: Big Chomp, Fast Swim, Quick Explode, Big Net, Mini Luko, and the **Big Sneeze** (AH-CHOO! blasts every germ off the screen; Q on a computer). Coins and power-ups are saved on your device.
 - Scoop up the shapes germs drop. Once Luko learns a shape, he throws antibodies that slow that germ down, and a mini Luko joins him.
 - The sparkle button turns lighting and glow effects on and off.
 
