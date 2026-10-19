@@ -1,5 +1,7 @@
 # Luko: playtest build
 
+Current version: **v0.7**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
+
 A free game for kids (about 2nd grade) about how the body learns to fight germs. You play Luko, a clay white blood cell who gulps germs and learns their shapes so the body is ready next time.
 
 **Play:** open the GitHub Pages link for this repo on a phone or tablet (upright or sideways), or on a computer.
