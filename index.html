@@ -168,7 +168,7 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
   <div class="card">
     <p class="eyebrow" id="endEyebrow">Day 1 done</p>
     <h2 id="endTitle">The moon is up!</h2>
-    <p id="endText">Remy saved these memory cards.</p>
+    <p id="endText">Luko remembers these germs.</p>
     <div class="cards" id="memCards"></div>
     <p class="note" id="endHint">Next day, Luko's antibodies for these germs are ready from the first second.</p>
     <div class="row">
@@ -323,6 +323,7 @@ const sfx = {
   // EXPLODE: Luko puffs up (rising wobble), then a soft clay boom
   puff() { tone(170, "sine", 0.12, 0.5, 520); tone(340, "triangle", 0.035, 0.5, 1050); tone(255, "sine", 0.04, 0.5, 780, 0.02); },
   boom() { tone(120, "sine", 0.42, 0.6, 38); noise(260, 0.8, 0.32, 0.32); noise(2600, 0.7, 0.1, 0.22); tone(72, "triangle", 0.16, 0.5, 34); tone(660, "sine", 0.05, 0.4, 1320, 0.05); },
+  mini() { tone(620, "sine", 0.1, 0.12, 980); tone(980, "sine", 0.08, 0.14, 1480, 0.1); tone(1480, "triangle", 0.03, 0.12, null, 0.2); },
   ready() { [880, 1108.7, 1318.5, 1760].forEach((f, k) => tone(f, "triangle", 0.09, 0.22, null, k * 0.06)); },
   nope() { tone(300, "triangle", 0.06, 0.09, 240); tone(240, "triangle", 0.05, 0.1, 200, 0.09); },
   // a footfall: the nom's soft low "blup", quieter, with a wet splish and a tiny droplet on top
@@ -351,7 +352,9 @@ const AURA = 1.25, LUKO_R = 0.68, SPEED = 4.2, DAY_LEN = 70;
 // the player does the eating now: CHOMP grabs the nearest germ in reach; EXPLODE charges with every germ eaten
 const REACH = 2.7, REACH_TAG = 3.4, CHOMP_CD = 0.2, LUNGE_T = 0.12;
 const FLEE_R = 2.9, FLEE_SP = 2.0, FLEE_T = 0.6, TIRED_T = 2.2;      // germs scoot away a little, then tire out so you can catch them
-const CHARGE_PER = 0.2, PUFF_T = 0.55, NET_T = 0.32, NET_R = 5.2;   // 5 germs fill EXPLODE; the sticky net catches everything in NET_R
+const CHARGE_PER = 0.2, PUFF_T = 0.55, NET_T = 0.32, NET_R = 5.2;
+// once Luko learns a germ, a mini Luko (about a quarter his size) joins him: the body makes more helpers for a germ it has learned
+const MINI_S = 0.28, MINI_R = 1.3, MINI_REACH = 1.7;   // 5 germs fill EXPLODE; the sticky net catches everything in NET_R
 const newLuko = () => ({ x: 0, y: 0, vx: 0, vy: 0, chomp: 0, nomT: 0, g: null, face: 0, faceT: 0, turnPop: 0, restT: 0, throwT: 0, throwDir: 1, throwSide: 1, cd: 0, lunge: 0, lvx: 0, lvy: 0 });
 const S = {
   running: false, paused: false, over: false, t: 0, day: 1,
@@ -360,7 +363,7 @@ const S = {
   germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [],
   meter: [0, 0, 0], learned: [false, false, false], memory: [false, false, false], met: [false, false, false],
   sick: 0, restT: 0, spawnT: 0, splitT: 6, fireT: [0, 0, 0], rippleT: 0,
-  charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, chomps: 0, booms: 0, readyShown: false
+  charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, chomps: 0, booms: 0, readyShown: false, minis: []
 };
 let T = 0;
 
@@ -480,6 +483,7 @@ function doChomp() {
     if (Math.abs(dx) > Math.abs(dy) * 0.6) L.face = dx > 0 ? 1 : -1;
     sfx.nom(1.15);
     eatGerm(g, 2.2);
+    miniChomps(g);
     S.chomps++;
   } else {
     // nothing in reach: a little hop forward and a snap of the jaws (still fun to mash)
@@ -544,20 +548,52 @@ function updateBoom(dt) {
   else if (B.phase === "net") { for (const g of B.caught) g.pulse = Math.max(g.pulse, 0.12); if (B.t >= NET_T) boomPull(); }
   else if (B.phase === "pull" && B.t > 0.35 && !(S.L.g && S.L.g.hold)) S.boom = null;
 }
+function addMini(type, pop) {
+  if (S.minis.some((m) => m.type === type)) return;
+  const L = S.L;
+  S.minis.push({ type, x: L.x, y: L.y + 0.05, slot: S.minis.length, age: pop ? 0 : 1 });
+  if (pop) { burst(L.x, L.y, TYPES[type].glow, RM ? 6 : 14, 2.6); S.flashes.push({ x: L.x, y: L.y, life: 0.4, max: 0.4, c: rgbOf(TYPES[type].glow) }); sfx.mini(); }
+}
+// the minis circle slowly around Luko, inside his reach ring, and catch up with a little lag
+function updateMinis(dt) {
+  const L = S.L, n = Math.max(3, S.minis.length);
+  for (const m of S.minis) {
+    m.age += dt;
+    const a = (m.slot / n) * TAU + T * 0.55, tx = L.x + Math.cos(a) * MINI_R, ty = L.y + Math.sin(a) * MINI_R * 0.85;
+    const k = Math.min(1, dt * (m.age < 0.5 ? 3 : 6));
+    m.x += (tx - m.x) * k; m.y += (ty - m.y) * k;
+  }
+}
+// when Luko chomps, each mini snaps up a germ near itself too
+function miniChomps(skip) {
+  for (const m of S.minis) {
+    if (m.age < 0.5) continue;
+    let best = null, bd = 1e9;
+    for (const h of S.germs) { if (h.netted || h === skip) continue; const d = Math.hypot(h.x - m.x, h.y - m.y) - TYPES[h.type].r; if (d < MINI_REACH && d < bd) { bd = d; best = h; } }
+    if (!best) continue;
+    S.germs.splice(S.germs.indexOf(best), 1);
+    burst(best.x, best.y, TYPES[best.type].glow, RM ? 4 : 7, 1.6);
+    S.gems.push({ type: best.type, x: best.x, y: best.y, vx: rand(-0.6, 0.6), vy: rand(-0.6, 0.6), age: 2.6 });
+    S.met[best.type] = true;
+    S.slurps.push({ g: best, t: 0, dur: 0.16, x0: best.x, y0: best.y, n: 0, mini: m });
+    addCharge(CHARGE_PER);
+  }
+}
 function pressFx(id) { const b = $(id); b.classList.add("down"); setTimeout(() => b.classList.remove("down"), 110); }
 
 function resetDay(keepMemory) {
   if (!keepMemory) { S.memory = [false, false, false]; S.day = 1; }
   Object.assign(S, { running: true, paused: false, over: false, t: 0, germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [], sick: 0, restT: 0, spawnT: 2.2, splitT: 7, fireT: [0, 0, 0],
-    charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null });
+    charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, minis: [] });
   S.L = newLuko();
+  S.memory.forEach((m, i) => { if (m) addMini(i, false); });
   S.cam = { x: 0, y: 0 }; S.prevCam = { x: 0, y: 0 };
   S.met = [false, false, false];
   S.learned = S.memory.slice();
   S.meter = S.memory.map((m) => (m ? 1 : 0));
   // the first germs start close and in view, so there is something to catch right away
-  [[2.6, -1.2], [-3.4, -2.2], [1.2, 2.4]].forEach(([x, y], i) => S.germs.push(makeGerm(i, x, y)));
-  if (S.memory.some(Boolean)) setTimeout(() => toast("Remy remembers! Antibodies ready."), 400);
+  [[2.6, -1.2], [-3.4, -2.2], [1.2, 2.4], [3.6, 1.4], [-2.4, 1.8], [-0.6, -3.6]].forEach(([x, y], i) => S.germs.push(makeGerm(i % 3, x, y)));
+  if (S.memory.some(Boolean)) setTimeout(() => toast("Luko remembers! His mini Lukos are back."), 400);
 }
 
 /* ---------- toast ---------- */
@@ -625,6 +661,7 @@ function update(dt) {
   if (L.lunge > 0) { const h = Math.min(dt, L.lunge); L.x += L.lvx * h; L.y += L.lvy * h; L.lunge -= dt; }
   L.cd = Math.max(0, L.cd - dt);
   updateBoom(dt);
+  updateMinis(dt);
   S.shake = Math.max(0, S.shake - dt); S.white = Math.max(0, S.white - dt);
   if (S.word) { S.word.t += dt; if (S.word.t > S.word.max) S.word = null; }
   if (S.net) { S.net.age += dt; if (S.net.age > S.net.max) S.net = null; }
@@ -654,19 +691,19 @@ function update(dt) {
   const party = S.t > DAY_LEN - 12;
   S.spawnT -= dt;
   // germs arrive in little gangs, so there is always a crowd worth EXPLODING
-  if (S.spawnT <= 0 && S.t < DAY_LEN - 1.5 && S.germs.length < 32) {
-    const n = party ? 4 : S.t < 10 ? 2 : 3;
+  if (S.spawnT <= 0 && S.t < DAY_LEN - 1.5 && S.germs.length < 48) {
+    const n = party ? 6 : S.t < 10 ? 3 : 4;
     spawnGerm();
     const lead = S.germs[S.germs.length - 1];
     for (let i = 1; i < n; i++) S.germs.push(makeGerm(Math.random() < 0.6 ? lead.type : (Math.random() * 3) | 0, lead.x + rand(-0.9, 0.9), lead.y + rand(-0.9, 0.9)));
-    S.spawnT = party ? 2.4 : S.t < 10 ? 3 : 3.6;
+    S.spawnT = party ? 1.8 : S.t < 10 ? 2.4 : 2.5;
   }
   // germs copy themselves (the ones nobody catches)
   S.splitT -= dt;
   if (S.splitT <= 0) {
-    S.splitT = 5.5;
+    S.splitT = 4.5;
     const cand = S.germs.filter((g) => !g.tagged && !g.netted);
-    if (cand.length && S.germs.length < 20) {
+    if (cand.length && S.germs.length < 48) {
       const g = cand[(Math.random() * cand.length) | 0];
       const ng = makeGerm(g.type, g.x + 0.35, g.y + 0.15); ng.vx = -g.vx; ng.vy = -g.vy;
       g.splitShow = 0.4; ng.splitShow = 0.15;
@@ -750,14 +787,14 @@ function update(dt) {
       S.gems.splice(i, 1); sfx.chime(m.type);
       if (!S.learned[m.type]) {
         S.meter[m.type] = Math.min(1, S.meter[m.type] + 0.25);
-        if (S.meter[m.type] >= 1) { S.learned[m.type] = true; sfx.learn(); toast(`Antibodies slow down ${TYPES[m.type].name}s!`); }
+        if (S.meter[m.type] >= 1) { S.learned[m.type] = true; sfx.learn(); addMini(m.type, true); toast(`Luko learned ${TYPES[m.type].name}s! A mini Luko joined!`); }
       }
       burst(L.x, L.y, TYPES[m.type].glow, 6, 1.4);
     }
   }
 
   // sick meter
-  const target = Math.min(1, S.germs.filter((g) => !g.tagged).length / 24);
+  const target = Math.min(1, S.germs.filter((g) => !g.tagged).length / 36);
   S.sick += (target - S.sick) * Math.min(1, dt * 0.8);
   if (S.sick > 0.97) S.restT += dt; else S.restT = 0;
   if (S.restT > 1.6) return endDay(true);
@@ -877,6 +914,7 @@ function queueFloorShadows() {
   let ls = 0.7 - Math.sin(T * 2.2) * 0.04;
   if (G.m) ls *= up ? 1 - 0.1 * G.m : 1 + 0.06 * G.m;   // the shadow shrinks when he hops and spreads when he lands
   ls *= lukoBoomScale();
+  for (const m of S.minis) { const s = miniPop(m) * (LP.hidden ? 0.1 : 1); ground("soft", m.x, m.y, 0.01, 0.24 * s, 0.24 * s, 0, 0, 0, 0.6); }
   ground("soft", S.L.x, S.L.y, 0.01, ls, ls, 0, 0, 0, up ? 0.5 : 0.7);
 }
 // how big Luko is during EXPLODE: puffs up, vanishes into the net, then pops back together with a wobble
@@ -917,6 +955,7 @@ function queueFloorGlows() {
       }
     }
   }
+  for (const m of S.minis) { const c = rgbOf(TYPES[m.type].glow), s = miniPop(m); ground("soft", m.x, m.y, 0.02, 0.5 * s, 0.5 * s, c[0], c[1], c[2], 0.45); }
   for (const g of S.germs) if (g.netted) { const c = rgbOf(TYPES[g.type].glow); bill("halo", g.x, g.y, GERM_H + TYPES[g.type].r, (TYPES[g.type].r * 4) / 64, 0, 1, 1, 1, 0.9, 0.6, 0.7); ground("soft", g.x, g.y, 0.03, 0.5, 0.5, c[0], c[1], c[2], 0.4); }
   for (const m of S.gems) { const c = rgbOf(TYPES[m.type].glow); bill("halo", m.x, m.y, 0.34 + Math.sin(T * 4 + m.x) * 0.07, 0.64 / 64, 0, 1, 1, c[0], c[1], c[2], 0.55); }
   for (const p of PROPS) bill("halo", p.x, p.y, p.h + p.r, (p.r * (p.red ? 2.4 : 4)) / 64, 0, 1, 1, 1, p.red ? 0.28 : 0.93, p.red ? 0.34 : 0.84, p.red ? 0.22 : 0.4);
@@ -928,9 +967,11 @@ function queueActors() {
   for (const p of PROPS) ACT.push(p);
   for (const m of S.gems) ACT.push(m);
   ACT.push(S.L);
+  for (const m of S.minis) ACT.push(m);
   ACT.sort((a, b) => a.y - b.y);
   for (const it of ACT) {
     if (it === S.L) queueLuko();
+    else if (it.slot !== undefined) queueMini(it);
     else if (it.name) bill(it.name, it.x, it.y, it.h + it.r, (2.2 * it.r) / (it.red ? 128 : 92), it.ang, 1, 1, 1, 1, 1, 1);
     else if (it.hp !== undefined) queueGerm(it);
     else bill("tok" + it.type, it.x, it.y, 0.34 + Math.sin(T * 4 + it.x) * 0.07, (0.2 * 2.3) / 92, Math.sin(T * 2 + it.y) * 0.3, 1, 1, 1, 1, 1, 1);
@@ -983,7 +1024,7 @@ function queueLuko() {
   let tint = 1;
   const B = S.boom;
   if (B) {
-    if (B.phase === "net") return;   // he's burst into the net; he pulls back together in a moment
+    if (B.phase === "net") { LP.hidden = true; return; }   // he's burst into the net; he pulls back together in a moment
     const bs = lukoBoomScale();
     if (B.phase === "puff") {
       // puffing up: cheeks full, trembling, glowing brighter, about to pop
@@ -993,6 +1034,17 @@ function queueLuko() {
     } else { scx *= bs; scy *= bs; pv = 0; }
   }
   bill(name, L.x, L.y, z, BODY_U / GA.bodyH, rr, scx, scy, tint, tint, tint, 1, pv);
+  LP.name = name; LP.z = z; LP.rr = rr; LP.scx = scx; LP.scy = scy; LP.pv = pv; LP.tint = tint; LP.hidden = false;
+}
+const LP = { name: "L0", z: LUKO_H, rr: 0, scx: 1, scy: 1, pv: 0, tint: 1, hidden: false };
+const miniPop = (m) => (m.age >= 0.6 ? 1 : Math.max(0, 1 - Math.exp(-7 * m.age / 0.6) * Math.cos(10 * m.age / 0.6)));
+// a mini Luko: the same pose, frame and facing as Luko, a quarter of the size
+function queueMini(m) {
+  if (LP.hidden) return;
+  const s = MINI_S * miniPop(m);
+  if (s <= 0.01) return;
+  const z = 0.1 + (LP.z - LUKO_H) * MINI_S + Math.sin(T * 2.6 + m.slot * 2) * 0.02;
+  bill(LP.name, m.x, m.y, z, (BODY_U / GA.bodyH) * s, LP.rr, LP.scx, LP.scy, LP.tint, LP.tint, LP.tint, 1, LP.pv);
 }
 // where Luko is in his stride: 4 stepped poses per stride (land, spring, land, spring), scaled by how fast he swims
 function lukoGait() {
@@ -1003,10 +1055,12 @@ function lukoGait() {
 function queueSlurp(s) {
   const k = clamp(s.t / s.dur, 0, 1), e = k * k;
   const tp = TYPES[s.g.type], G = germArt(s.g.type), Rw = tp.r * 0.72 * (1 - 0.6 * e);
-  const sl = BODY_U / GA.bodyH, up = -GA.mouth[1] * sl, bz = LUKO_H + Math.sin(T * 2.2) * 0.05 - HOP[4];
-  const mx = S.L.x + GA.mouth[0] * sl, my = S.L.y - SP * up, mz = bz + CP * up;
+  const mm = s.mini, ms = mm ? MINI_S : 1;
+  const sl = (BODY_U / GA.bodyH) * ms, up = -GA.mouth[1] * sl, bz = mm ? 0.1 : LUKO_H + Math.sin(T * 2.2) * 0.05 - HOP[4];
+  const ox = mm ? mm.x : S.L.x, oy = mm ? mm.y : S.L.y;
+  const mx = ox + GA.mouth[0] * sl, my = oy - SP * up, mz = bz + CP * up;
   const gz = GERM_H + tp.r, arc = Math.sin(k * Math.PI) * 0.22;
-  bill(G.tagged || G.float[1], s.x0 + (mx - s.x0) * e, s.y0 + (my - s.y0) * e - SP * arc, gz + (mz - gz) * e + CP * arc, Rw / G.r, k * 5, 1 + 0.2 * e, 1 - 0.15 * e, 1, 1, 1, 1);
+  bill(G.tagged || G.float[1], s.x0 + (mx - s.x0) * e, s.y0 + (my - s.y0) * e - SP * arc, gz + (mz - gz) * e + CP * arc, (Rw / G.r) * (mm ? 1 - 0.5 * e : 1), k * 5, 1 + 0.2 * e, 1 - 0.15 * e, 1, 1, 1, 1);
 }
 function queueFx() {
   for (const p of S.parts) {
@@ -1279,7 +1333,7 @@ function createRenderer() {
       target(C); bindTex(p, "uTex", 0, B.t); gl.uniform2f(p.u.uDir, 2.2 / B.w, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       target(B); bindTex(p, "uTex", 0, C.t); gl.uniform2f(p.u.uDir, 0, 2.2 / B.h); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
-    // 6) grade to screen: warm-to-cool over the day, grayer when Sam feels sick
+    // 6) grade to screen: warm-to-cool over the day, grayer when the body feels sick
     target(null);
     p = fullQuad(P.final);
     bindTex(p, "uScene", 0, A.t); bindTex(p, "uBloom", 1, B.t);
@@ -1477,11 +1531,11 @@ function endDay(rest) {
   S.over = true; joy.active = false; fingers.clear();
   for (let i = 0; i < 3; i++) S.memory[i] = S.memory[i] || S.met[i];
   $("endEyebrow").textContent = `Day ${S.day} done`;
-  $("endTitle").textContent = rest ? "Sam needs a rest." : "The moon is up!";
+  $("endTitle").textContent = rest ? "Time for a rest." : "The moon is up!";
   const saved = S.memory.filter(Boolean).length;
   $("endText").textContent = rest
-    ? "Too many germs this time, but Sam's body was learning the whole day."
-    : saved ? "Remy saved these memory cards." : "No germs met today.";
+    ? "Too many germs this time, but the body was learning the whole day."
+    : saved ? "Luko remembers these germs." : "No germs met today.";
   const box = $("memCards"); box.innerHTML = "";
   S.memory.forEach((m, i) => {
     if (!m) return;
