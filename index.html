@@ -58,6 +58,36 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);z-index:4;font:800 20px/1 var(--display);color:var(--gold);background:rgba(6,30,38,0.78);border:1px solid rgba(255,210,122,0.4);padding:12px 20px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 0 30px rgba(255,210,122,0.25);pointer-events:none}
 .hero{display:flex;align-items:center;justify-content:center;gap:4px}
 #hero{width:160px;height:124px;display:block;flex:none}
+/* the two action buttons, stacked in the bottom-right corner so the middle of the screen stays open:
+   CHOMP (bigger, where the thumb rests) and EXPLODE above it, with a ring that fills as Luko eats */
+.actions{position:fixed;right:calc(env(safe-area-inset-right,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:84px;height:162px;z-index:4;pointer-events:none}
+.act{position:absolute;border-radius:50%;padding:0;pointer-events:auto;touch-action:none;cursor:pointer;display:grid;place-items:center;-webkit-tap-highlight-color:transparent;transition:transform .07s,box-shadow .07s}
+.act canvas{width:84%;height:auto;pointer-events:none;display:block}
+#chompBtn{right:0;bottom:0;width:84px;height:84px;border:none;background:radial-gradient(circle at 38% 30%,#fff1c9,#ffd27a 52%,#e0a033);box-shadow:0 6px 0 #a8731d,0 10px 22px rgba(0,0,0,.4)}
+#chompBtn.down{transform:translateY(4px) scale(.95);box-shadow:0 2px 0 #a8731d,0 5px 14px rgba(0,0,0,.4)}
+#boomBtn{right:12px;bottom:104px;width:60px;height:60px;border:none;background:rgba(40,14,34,0.66)}
+#boomBtn canvas{width:86%;filter:grayscale(0.85) brightness(0.8);opacity:0.7}
+#boomBtn::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(#ff8fc4 calc(var(--p,0) * 1turn),rgba(255,255,255,0.2) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px)),repeating-conic-gradient(#000 0 66deg,transparent 66deg 72deg);
+  -webkit-mask-composite:source-in;
+  mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px)),repeating-conic-gradient(#000 0 66deg,transparent 66deg 72deg);
+  mask-composite:intersect}
+#boomBtn.ready{background:radial-gradient(circle at 38% 30%,#ffd6ec,#ff6fb0 56%,#c23b7a);box-shadow:0 5px 0 #8e2457,0 0 30px rgba(255,111,176,.85);animation:throb .62s ease-in-out infinite}
+#boomBtn.ready::before{background:#ffd1e8}
+#boomBtn.ready canvas{filter:none;opacity:1}
+#boomBtn.down{transform:translateY(4px) scale(.94)}
+#boomBtn.nope{animation:nope .32s ease-in-out}
+/* first-time hints sit beside the buttons, pointing at them */
+.tip{position:absolute;right:calc(100% + 14px);bottom:24px;white-space:nowrap;font:800 18px/1 var(--display);color:#3b2406;background:#ffd27a;padding:9px 13px 7px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.35);pointer-events:none;animation:poke .7s ease-in-out infinite}
+.tip::after{content:"";position:absolute;right:-9px;top:50%;margin-top:-9px;border:9px solid transparent;border-right:0;border-left-color:#ffd27a}
+#boomTip{bottom:116px;background:#ff8fc4;color:#3d0a24}
+#boomTip::after{border-left-color:#ff8fc4}
+@keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+@keyframes nope{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@keyframes poke{0%,100%{transform:translateX(0)}50%{transform:translateX(-7px)}}
+@media (max-height: 360px){.actions{transform:scale(0.88);transform-origin:100% 100%}}
+@media (prefers-reduced-motion: reduce){#boomBtn.ready,.tip,#boomBtn.nope{animation:none}}
 @media (max-height: 520px){
   .card{padding:14px 18px 16px;gap:8px;width:min(560px,100%)}
   #hero{width:118px;height:88px}
@@ -90,19 +120,30 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
   </button>
 </div>
 
+<div class="actions" id="actions" hidden>
+  <div class="tip" id="chompTip" hidden>Tap to CHOMP!</div>
+  <div class="tip" id="boomTip" hidden>EXPLODE!</div>
+  <button class="act" id="boomBtn" type="button" aria-label="Explode to eat every germ nearby">
+    <canvas id="boomIcon" width="128" height="104" aria-hidden="true"></canvas>
+  </button>
+  <button class="act" id="chompBtn" type="button" aria-label="Chomp the nearest germ">
+    <canvas id="chompIcon" width="160" height="134" aria-hidden="true"></canvas>
+  </button>
+</div>
+
 <div id="toast" role="status" hidden></div>
 
 <div class="overlay" id="startScreen">
   <div class="card">
-    <p class="eyebrow">Glow Tide · look test</p>
+    <p class="eyebrow">Playtest · Chomp update</p>
     <div class="hero"><canvas id="hero" aria-label="Luko gulping a germ"></canvas><h1>Luko</h1></div>
     <ul class="how">
-      <li><b>1</b><span>Touch anywhere and slide to swim.</span></li>
-      <li><b>2</b><span>Luko gobbles germs all by himself.</span></li>
-      <li><b>3</b><span>Scoop up the shapes they drop to build antibodies.</span></li>
+      <li><b>1</b><span>Slide your finger to swim.</span></li>
+      <li><b>2</b><span>Catch germs and tap CHOMP to eat them!</span></li>
+      <li><b>3</b><span>Eat 5 and EXPLODE to gobble them all!</span></li>
     </ul>
     <button class="btn" id="playBtn" type="button">Play</button>
-    <p class="note" id="startNote">Luko, the germs and the world are your Gemini sheets. The sparkle button turns lighting and glow effects on and off.</p>
+    <p class="note" id="startNote">Turn your sound on and hold the phone sideways. On a computer: arrow keys swim, Space chomps, E explodes.</p>
   </div>
 </div>
 
@@ -155,7 +196,7 @@ function resize() {
   cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
   cv.style.width = vw + "px"; cv.style.height = vh + "px";
   const m = Math.min(vw, vh);
-  unit = Math.max(34, Math.min(84, m / 8));
+  unit = Math.max(32, Math.min(80, m / 8.8));   // a touch zoomed out, for more room around Luko
   hs = Math.max(0.75, Math.min(1.25, m / 460));
   readInsets();
   if (R) R.resize();
@@ -214,7 +255,7 @@ const OPEN = 2, PEAK = 3, CHOMP = 4, SWALLOW = 5;                               
 const HOP = [0, -0.02, 0.03, -0.1, -0.05, 0.04, 0, -0.02, -0.03];                    // lift per frame, units (up is negative)
 const atlasImg = new Image(), tileImg = new Image();
 let atlasReady = false, tileReady = false;
-atlasImg.onload = () => { atlasReady = true; if (R) R.upload(); };
+atlasImg.onload = () => { atlasReady = true; if (R) R.upload(); drawButtonIcons(); };
 tileImg.onload = () => { tileReady = true; if (R) R.upload(); };
 atlasImg.src = ATLAS_SRC; tileImg.src = TILE_SRC;
 // 2D canvas version, for the HUD, the start card and the memory cards
@@ -264,7 +305,14 @@ const sfx = {
   ahh() { tone(300, "triangle", 0.07, 0.16, 520); },
   gulp() { tone(260, "sine", 0.3, 0.17, 80); noise(320, 2, 0.12, 0.1); tone(140, "triangle", 0.08, 0.13, 70, 0.03); },
   bloop() { tone(540, "sine", 0.1, 0.13, 230); },
-  nom() { noise(420 + Math.random() * 120, 2.5, 0.12, 0.09); tone(150, "sine", 0.08, 0.08, 95); },
+  nom(p = 1) { noise((420 + Math.random() * 120) * p, 2.5, 0.12, 0.09); tone(150 * p, "sine", 0.08, 0.08, 95 * p); },
+  // a chomp that catches nothing: a quick wet snap
+  snap() { noise(900, 2.2, 0.08, 0.05); tone(230, "sine", 0.09, 0.07, 120); },
+  // EXPLODE: Luko puffs up (rising wobble), then a soft clay boom
+  puff() { tone(170, "sine", 0.12, 0.5, 520); tone(340, "triangle", 0.035, 0.5, 1050); tone(255, "sine", 0.04, 0.5, 780, 0.02); },
+  boom() { tone(120, "sine", 0.42, 0.6, 38); noise(260, 0.8, 0.32, 0.32); noise(2600, 0.7, 0.1, 0.22); tone(72, "triangle", 0.16, 0.5, 34); tone(660, "sine", 0.05, 0.4, 1320, 0.05); },
+  ready() { [880, 1108.7, 1318.5, 1760].forEach((f, k) => tone(f, "triangle", 0.09, 0.22, null, k * 0.06)); },
+  nope() { tone(300, "triangle", 0.06, 0.09, 240); tone(240, "triangle", 0.05, 0.1, 200, 0.09); },
   // a footfall: the nom's soft low "blup", quieter, with a wet splish and a tiny droplet on top
   splish(v) { const r = 1 + (Math.random() - 0.5) * 0.3; noise(1500 * r, 1.3, 0.05 * v, 0.07); tone(165 * r, "sine", 0.05 * v, 0.1, 100 * r); tone(1150 * r, "sine", 0.014 * v, 0.05, 1700 * r, 0.035); },
   chime(i) { const f = [1046.5, 1318.5, 1568][i] * (1 + (Math.random() - 0.5) * 0.02); tone(f, "sine", 0.16, 0.55); tone(f * 2.01, "sine", 0.04, 0.3); },
@@ -288,17 +336,23 @@ function music(dt) {
 
 /* ---------- state ---------- */
 const AURA = 1.25, LUKO_R = 0.68, SPEED = 4.2, DAY_LEN = 70;
+// the player does the eating now: CHOMP grabs the nearest germ in reach; EXPLODE charges with every germ eaten
+const REACH = 2.7, REACH_TAG = 3.4, CHOMP_CD = 0.2, LUNGE_T = 0.12;
+const FLEE_R = 2.9, FLEE_SP = 2.0, FLEE_T = 0.6, TIRED_T = 2.2;      // germs scoot away a little, then tire out so you can catch them
+const CHARGE_PER = 0.2, PUFF_T = 0.55, NET_T = 0.32, NET_R = 5.2;   // 5 germs fill EXPLODE; the sticky net catches everything in NET_R
+const newLuko = () => ({ x: 0, y: 0, vx: 0, vy: 0, chomp: 0, nomT: 0, g: null, face: 0, faceT: 0, turnPop: 0, restT: 0, throwT: 0, throwDir: 1, throwSide: 1, cd: 0, lunge: 0, lvx: 0, lvy: 0 });
 const S = {
   running: false, paused: false, over: false, t: 0, day: 1,
-  L: { x: 0, y: 0, vx: 0, vy: 0, chomp: 0, nomT: 0, g: null, face: 0, faceT: 0, turnPop: 0, restT: 0, throwT: 0, throwDir: 1, throwSide: 1 },
+  L: newLuko(),
   cam: { x: 0, y: 0 }, prevCam: { x: 0, y: 0 },
   germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [],
   meter: [0, 0, 0], learned: [false, false, false], memory: [false, false, false], met: [false, false, false],
-  sick: 0, restT: 0, spawnT: 0, splitT: 6, fireT: [0, 0, 0], rippleT: 0
+  sick: 0, restT: 0, spawnT: 0, splitT: 6, fireT: [0, 0, 0], rippleT: 0,
+  charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, chomps: 0, booms: 0, readyShown: false
 };
 let T = 0;
 
-function makeGerm(type, x, y) { return { type, x, y, vx: 0, vy: 0, hp: 1, tagged: false, targeted: false, off: Math.random() * 10, dartT: rand(4, 9), dart: 0, pulse: 0, splitShow: 0 }; }
+function makeGerm(type, x, y) { return { type, x, y, vx: 0, vy: 0, hp: 1, tagged: false, targeted: false, off: Math.random() * 10, pulse: 0, splitShow: 0, flee: 0, tired: 0, wa: Math.random() * TAU, netted: false }; }
 // germs spawn just past the edge of the visible floor, which reaches farther up the screen than down
 function viewRadius() { return Math.max(CAM.ext.x, CAM.ext.n, CAM.ext.s) + 1; }
 function spawnGerm(type) {
@@ -320,18 +374,35 @@ function startThrow(g) {
   const dx = g.x - L.x, dy = g.y - L.y;
   L.throwT = THROW_T; L.throwSide = dx >= 0 ? 1 : -1; L.throwDir = -dy > Math.abs(dx) * 0.9 ? 2 : L.throwSide;
 }
-function startGulp(g) {
+// fast > 1 (a CHOMP press) skips the slow wind-up and snaps the mouth open, so the button feels instant
+function startGulp(g, fast = 1) {
   const L = S.L;
-  if (!L.g) L.g = { step: 0, t: 0 };
-  else if (L.g.step >= CHOMP) L.g = { step: OPEN, t: 0 };   // mouth already shut: open wide again
-  const dur = Math.max(0.12, stepsTime(L.g.step, CHOMP) - L.g.t);
-  S.slurps.push({ g, t: 0, dur, x0: g.x, y0: g.y });
+  if (!L.g) L.g = { step: fast > 1 ? OPEN : 0, t: 0, fast };
+  else if (L.g.step >= CHOMP) L.g = { step: OPEN, t: 0, fast };   // mouth already shut: open wide again
+  else L.g.fast = Math.max(L.g.fast || 1, fast);
+  const dur = Math.max(0.1, (stepsTime(L.g.step, CHOMP) - L.g.t) / L.g.fast);
+  if (g) S.slurps.push({ g, t: 0, dur, x0: g.x, y0: g.y });
 }
 function updateGulp(dt) {
   const L = S.L;
   for (const s of S.slurps) s.t += dt;
   if (!L.g) { S.slurps.length = 0; return; }
-  L.g.t += dt;
+  // EXPLODE: the mouth stays wide open while every netted germ flies in, one after another
+  if (L.g.hold) {
+    const [mx, my] = mouthPos();
+    for (let i = S.slurps.length - 1; i >= 0; i--) {
+      const s = S.slurps[i];
+      if (s.t < s.dur) continue;
+      S.slurps.splice(i, 1);
+      sfx.nom(1 + Math.min(10, s.n) * 0.07);
+      burst(mx, my - 0.1, TYPES[s.g.type].glow, RM ? 3 : 6, 1.2);
+      S.flashes.push({ x: mx, y: my, life: 0.25, max: 0.25, c: rgbOf(TYPES[s.g.type].glow) });
+      L.turnPop = 0.14;
+    }
+    if (S.slurps.length) return;
+    L.g.hold = false; L.g.t = 0;
+  }
+  L.g.t += dt * (L.g.step < CHOMP ? L.g.fast || 1 : 1);
   while (L.g && L.g.t >= GULP_SEQ[L.g.step][1] / GULP_FPS) {
     L.g.t -= GULP_SEQ[L.g.step][1] / GULP_FPS; L.g.step++;
     if (L.g.step === PEAK) sfx.ahh();
@@ -352,15 +423,128 @@ function burst(x, y, rgb, n, speed, kind = "dot") {
   }
 }
 
+/* ---------- eating: CHOMP and EXPLODE ---------- */
+// Luko swallows a germ: sparkle, a shape to scoop up (it teaches antibodies), and a step toward EXPLODE
+function eatGerm(g, fast, fromBoom) {
+  const i = S.germs.indexOf(g); if (i < 0) return;
+  S.germs.splice(i, 1);
+  burst(g.x, g.y, TYPES[g.type].glow, RM ? 6 : 10, 2.2);
+  S.gems.push({ type: g.type, x: g.x, y: g.y, vx: rand(-0.6, 0.6), vy: rand(-0.6, 0.6), age: fromBoom ? 2.6 : 0 });
+  S.met[g.type] = true;
+  sfx.pip();
+  if (!fromBoom) { startGulp(g, fast); addCharge(CHARGE_PER); }
+}
+function addCharge(v) {
+  const was = S.charge;
+  S.charge = Math.min(1, S.charge + v);
+  if (was < 1 && S.charge >= 1) { sfx.ready(); if (!S.readyShown) { toast("EXPLODE is ready!"); S.readyShown = true; } }
+}
+// the germ CHOMP would grab: the nearest one in reach (germs with an antibody tag can be grabbed from farther)
+function chompTarget() {
+  const L = S.L; let best = null, bd = 1e9;
+  for (const g of S.germs) {
+    if (g.netted) continue;
+    const d = Math.hypot(g.x - L.x, g.y - L.y) - TYPES[g.type].r;
+    if (d > (g.tagged ? REACH_TAG : REACH)) continue;
+    // a small preference for germs ahead of where he's swimming
+    const ahead = (L.vx * (g.x - L.x) + L.vy * (g.y - L.y)) > 0 ? 0.35 : 0;
+    if (d - ahead < bd) { bd = d - ahead; best = g; }
+  }
+  return best;
+}
+function doChomp() {
+  const L = S.L;
+  if (!S.running || S.paused || S.over || (S.boom && S.boom.phase !== "pull")) return;
+  initAudio();
+  if (L.cd > 0) return;
+  L.cd = CHOMP_CD;
+  const g = chompTarget();
+  if (g) {
+    // lunge at it: a quick dash that ends right at the germ, mouth already opening
+    const dx = g.x - L.x, dy = g.y - L.y, d = Math.hypot(dx, dy) || 0.001;
+    // only a short hop toward it; the germ gets slurped the rest of the way, so steering isn't yanked around
+    const go = Math.max(0, d - (LUKO_R + TYPES[g.type].r) * 0.7) * 0.4;
+    L.lunge = LUNGE_T; L.lvx = (dx / d) * go / LUNGE_T; L.lvy = (dy / d) * go / LUNGE_T;
+    if (Math.abs(dx) > Math.abs(dy) * 0.6) L.face = dx > 0 ? 1 : -1;
+    sfx.nom(1.15);
+    eatGerm(g, 2.2);
+    S.chomps++;
+  } else {
+    // nothing in reach: a little hop forward and a snap of the jaws (still fun to mash)
+    const sp = Math.hypot(L.vx, L.vy), fx = sp > 0.5 ? L.vx / sp : L.face === 2 ? 0 : L.face || 0, fy = sp > 0.5 ? L.vy / sp : L.face === 2 ? -1 : L.face ? 0 : 1;
+    L.lunge = LUNGE_T * 0.8; L.lvx = fx * 2; L.lvy = fy * 2;
+    startGulp(null, 2.4);
+    sfx.snap();
+  }
+  pressFx("chompBtn");
+}
+function doBoom() {
+  if (!S.running || S.paused || S.over || S.boom) return;
+  initAudio();
+  if (S.charge < 1) {
+    // not yet: wiggle the button and say how many more germs to eat
+    const left = Math.max(1, Math.ceil((1 - S.charge) / CHARGE_PER - 1e-6));
+    toast(`Eat ${left} more to EXPLODE!`); sfx.nope();
+    const b = $("boomBtn"); b.classList.remove("nope"); void b.offsetWidth; b.classList.add("nope");
+    return;
+  }
+  S.charge = 0; S.booms++;
+  S.boom = { phase: "puff", t: 0 };
+  S.L.g = null; S.slurps.length = 0; S.L.lunge = 0;
+  sfx.puff();
+  pressFx("boomBtn");
+}
+// the big moment: Luko bursts into a sticky glowing net (real white blood cells do this), then pulls himself back together
+function boomBurst() {
+  const L = S.L;
+  S.boom = { phase: "net", t: 0, caught: [] };
+  S.net = { x: L.x, y: L.y, age: 0, max: 1.7 };
+  S.shake = RM ? 0 : 0.42; S.white = RM ? 0.12 : 0.22;
+  S.rings.push({ x: L.x, y: L.y, age: 0, max: 0.55, grow: NET_R * 1.1, a: 0.9 }, { x: L.x, y: L.y, age: -0.08, max: 0.6, grow: NET_R * 0.7, a: 0.6 });
+  S.flashes.push({ x: L.x, y: L.y, life: 0.5, max: 0.5, c: [1, 0.86, 0.95], rw: 10 });
+  // Luko's own clay, flung out in blobs
+  for (let i = 0; i < (RM ? 10 : 26); i++) {
+    const a = rand(0, TAU), v = rand(2.5, 6.5);
+    S.parts.push({ x: L.x, y: L.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.35, 0.6), max: 0.6, size: rand(0.1, 0.2), rgb: i % 3 ? "214,190,255" : "255,236,250", kind: i % 5 === 0 ? "star" : "dot" });
+  }
+  for (const g of S.germs) {
+    if (Math.hypot(g.x - L.x, g.y - L.y) < NET_R + TYPES[g.type].r) { g.netted = true; g.pulse = 0.3; S.boom.caught.push(g); }
+  }
+  sfx.boom();
+}
+function boomPull() {
+  const L = S.L, list = S.boom.caught.filter((g) => S.germs.includes(g));
+  list.sort((a, b) => Math.hypot(a.x - L.x, a.y - L.y) - Math.hypot(b.x - L.x, b.y - L.y));
+  S.boom = { phase: "pull", t: 0, n: list.length };
+  L.g = { step: PEAK, t: 0, fast: 2, hold: list.length > 0 };
+  const gap = Math.min(0.09, 1.1 / Math.max(1, list.length));
+  list.forEach((g, i) => {
+    S.slurps.push({ g, t: -i * gap, dur: 0.3, x0: g.x, y0: g.y, n: i });
+    eatGerm(g, 1, true);
+  });
+  if (list.length) S.word = { text: list.length > 1 ? `GOBBLE ×${list.length}!` : "GOBBLE!", t: 0, max: 1.3 };
+  else S.word = { text: "BOOM!", t: 0, max: 0.9 };
+}
+function updateBoom(dt) {
+  const B = S.boom; if (!B) return;
+  B.t += dt;
+  if (B.phase === "puff" && B.t >= PUFF_T) boomBurst();
+  else if (B.phase === "net") { for (const g of B.caught) g.pulse = Math.max(g.pulse, 0.12); if (B.t >= NET_T) boomPull(); }
+  else if (B.phase === "pull" && B.t > 0.35 && !(S.L.g && S.L.g.hold)) S.boom = null;
+}
+function pressFx(id) { const b = $(id); b.classList.add("down"); setTimeout(() => b.classList.remove("down"), 110); }
+
 function resetDay(keepMemory) {
   if (!keepMemory) { S.memory = [false, false, false]; S.day = 1; }
-  Object.assign(S, { running: true, paused: false, over: false, t: 0, germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [], sick: 0, restT: 0, spawnT: 1.2, splitT: 6, fireT: [0, 0, 0] });
-  S.L = { x: 0, y: 0, vx: 0, vy: 0, chomp: 0, nomT: 0, g: null, face: 0, faceT: 0, turnPop: 0, restT: 0, throwT: 0, throwDir: 1, throwSide: 1 };
+  Object.assign(S, { running: true, paused: false, over: false, t: 0, germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [], sick: 0, restT: 0, spawnT: 2.2, splitT: 7, fireT: [0, 0, 0],
+    charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null });
+  S.L = newLuko();
   S.cam = { x: 0, y: 0 }; S.prevCam = { x: 0, y: 0 };
   S.met = [false, false, false];
   S.learned = S.memory.slice();
   S.meter = S.memory.map((m) => (m ? 1 : 0));
-  for (let i = 0; i < 3; i++) spawnGerm(i);
+  // the first germs start close and in view, so there is something to catch right away
+  [[2.6, -1.2], [-3.4, -2.2], [1.2, 2.4]].forEach(([x, y], i) => S.germs.push(makeGerm(i, x, y)));
   if (S.memory.some(Boolean)) setTimeout(() => toast("Remy remembers! Antibodies ready."), 400);
 }
 
@@ -374,13 +558,36 @@ const keys = {};
 cv.addEventListener("pointerdown", (e) => {
   if (!S.running || S.paused || S.over) return;
   initAudio();
-  joy.active = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY;
+  // every finger on the water is tracked; the one that touched first steers, and if it lifts, the next one takes over
+  fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  if (!joy.active) { joy.active = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; }
 });
-cv.addEventListener("pointermove", (e) => { if (joy.active && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
-const endJoy = (e) => { if (e.pointerId === joy.id) joy.active = false; };
+const fingers = new Map();
+cv.addEventListener("pointermove", (e) => {
+  const f = fingers.get(e.pointerId); if (f) { f.x = e.clientX; f.y = e.clientY; }
+  if (joy.active && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; }
+});
+const endJoy = (e) => {
+  fingers.delete(e.pointerId);
+  if (e.pointerId !== joy.id) return;
+  joy.active = false;
+  const next = fingers.entries().next().value;
+  if (next && S.running && !S.paused && !S.over) { const [id, f] = next; joy.active = true; joy.id = id; joy.ox = joy.x = f.x; joy.oy = joy.y = f.y; }
+};
 cv.addEventListener("pointerup", endJoy); cv.addEventListener("pointercancel", endJoy);
-window.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; if (e.key === "Escape" && S.running && !S.over) setPaused(!S.paused); });
+// the buttons react on touch-down (not click) so they feel instant and work while the other thumb steers
+const onPress = (id, fn) => document.getElementById(id).addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
+onPress("chompBtn", () => doChomp());
+onPress("boomBtn", () => doBoom());
+window.addEventListener("keydown", (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === "Escape" && S.running && !S.over) setPaused(!S.paused);
+  if (S.running && !S.over && !S.paused) {
+    if (e.code === "Space" || e.key === "j" || e.key === "J") { e.preventDefault(); if (!e.repeat) doChomp(); }
+    else if (e.key === "e" || e.key === "E" || e.key === "k" || e.key === "K" || e.key === "Enter") { e.preventDefault(); if (!e.repeat) doBoom(); }
+  }
+});
 window.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
 
 /* ---------- update ---------- */
@@ -399,8 +606,16 @@ function update(dt) {
   const ky = (keys.arrowdown || keys.s ? 1 : 0) - (keys.arrowup || keys.w ? 1 : 0);
   if (kx || ky) { const l = Math.hypot(kx, ky); ix = kx / l; iy = ky / l; }
   const k = Math.min(1, dt * (ix || iy ? 16 : 22));
-  L.vx += (ix * SPEED - L.vx) * k; L.vy += (iy * SPEED - L.vy) * k;
+  const frozen = S.boom && S.boom.phase !== "pull";   // puffing up and bursting: he holds still
+  if (frozen) { ix = iy = 0; }
+  L.vx += (ix * SPEED - L.vx) * (frozen ? Math.min(1, dt * 12) : k); L.vy += (iy * SPEED - L.vy) * (frozen ? Math.min(1, dt * 12) : k);
   L.x += L.vx * dt; L.y += L.vy * dt;
+  if (L.lunge > 0) { const h = Math.min(dt, L.lunge); L.x += L.lvx * h; L.y += L.lvy * h; L.lunge -= dt; }
+  L.cd = Math.max(0, L.cd - dt);
+  updateBoom(dt);
+  S.shake = Math.max(0, S.shake - dt); S.white = Math.max(0, S.white - dt);
+  if (S.word) { S.word.t += dt; if (S.word.t > S.word.max) S.word = null; }
+  if (S.net) { S.net.age += dt; if (S.net.age > S.net.max) S.net = null; }
   // which way he faces: toward you when coming down or resting, turned when going sideways,
   // and his back (with the wiggling tail) when swimming up the screen. A short hold stops flicker on diagonals.
   const vsp = Math.hypot(L.vx, L.vy);
@@ -426,16 +641,19 @@ function update(dt) {
   // spawning
   const party = S.t > DAY_LEN - 12;
   S.spawnT -= dt;
-  if (S.spawnT <= 0 && S.t < DAY_LEN - 1.5) {
-    const n = party ? 3 : S.t < 12 ? 1 : 2;
-    for (let i = 0; i < n; i++) spawnGerm();
-    S.spawnT = party ? 2.2 : S.t < 12 ? 2.8 : 4.2;
+  // germs arrive in little gangs, so there is always a crowd worth EXPLODING
+  if (S.spawnT <= 0 && S.t < DAY_LEN - 1.5 && S.germs.length < 32) {
+    const n = party ? 4 : S.t < 10 ? 2 : 3;
+    spawnGerm();
+    const lead = S.germs[S.germs.length - 1];
+    for (let i = 1; i < n; i++) S.germs.push(makeGerm(Math.random() < 0.6 ? lead.type : (Math.random() * 3) | 0, lead.x + rand(-0.9, 0.9), lead.y + rand(-0.9, 0.9)));
+    S.spawnT = party ? 2.4 : S.t < 10 ? 3 : 3.6;
   }
-  // germs copy themselves
+  // germs copy themselves (the ones nobody catches)
   S.splitT -= dt;
   if (S.splitT <= 0) {
     S.splitT = 5.5;
-    const cand = S.germs.filter((g) => !g.tagged);
+    const cand = S.germs.filter((g) => !g.tagged && !g.netted);
     if (cand.length && S.germs.length < 20) {
       const g = cand[(Math.random() * cand.length) | 0];
       const ng = makeGerm(g.type, g.x + 0.35, g.y + 0.15); ng.vx = -g.vx; ng.vy = -g.vy;
@@ -445,54 +663,46 @@ function update(dt) {
   }
 
   // germs
+  // germs: drift closer out of curiosity, wander about, and scoot away when Luko gets near.
+  // After a dash they tire out, which is the moment to catch them. The first couple are sleepy, to learn on.
+  const skittish = S.chomps >= 2;
   for (const g of S.germs) {
     const tp = TYPES[g.type];
     const dx = L.x - g.x, dy = L.y - g.y, d = Math.hypot(dx, dy) || 0.001;
-    const sp = g.tagged ? 0.45 : 0.85;
+    g.pulse = Math.max(0, g.pulse - dt); g.splitShow = Math.max(0, g.splitShow - dt);
+    if (g.netted) { g.vx *= 1 - Math.min(1, dt * 10); g.vy *= 1 - Math.min(1, dt * 10); continue; }   // stuck in the net
+    const sp = g.tagged ? 0.5 : 1;
+    g.tired = Math.max(0, g.tired - dt);
+    if (skittish && !g.tagged && g.flee <= 0 && g.tired <= 0 && d < FLEE_R) { g.flee = FLEE_T; g.pulse = 0.22; g.side = Math.random() < 0.5 ? -1 : 1; }
     let tx, ty;
-    g.dartT -= dt;
-    if (g.dartT <= 0 && !g.tagged) { g.dart = 0.8; g.dartT = rand(5, 10); }
-    if (g.dart > 0) { g.dart -= dt; tx = (dx / d) * 2.2; ty = (dy / d) * 2.2; }
-    else if (d > 2.5) { tx = (dx / d) * sp; ty = (dy / d) * sp; }
+    if (g.flee > 0) {
+      g.flee -= dt; if (g.flee <= 0) g.tired = TIRED_T;
+      tx = (-dx / d) * FLEE_SP + (-dy / d) * 0.9 * g.side; ty = (-dy / d) * FLEE_SP + (dx / d) * 0.9 * g.side;
+    } else if (d > 5.5) { tx = (dx / d) * 1.1 * sp; ty = (dy / d) * 1.1 * sp; }
     else {
-      const dir = g.off > 5 ? 1 : -1;
-      tx = (-dy / d) * sp * dir - (dx / d) * (d < AURA + 0.2 ? 0.75 : 0.15);
-      ty = (dx / d) * sp * dir - (dy / d) * (d < AURA + 0.2 ? 0.75 : 0.15);
+      g.wa += (Math.sin(T * 0.9 + g.off * 7) * 1.6) * dt;
+      const w = (g.tired > 0 ? 0.3 : 0.65) * sp;
+      tx = Math.cos(g.wa) * w + (dx / d) * 0.15; ty = Math.sin(g.wa) * w + (dy / d) * 0.15;
     }
-    const kk = Math.min(1, dt * 2);
+    const kk = Math.min(1, dt * (g.flee > 0 ? 5 : 2));
     g.vx += (tx - g.vx) * kk; g.vy += (ty - g.vy) * kk;
     g.x += g.vx * dt; g.y += g.vy * dt;
     // bounce off Luko
     const minD = LUKO_R + tp.r * 0.9;
     if (d < minD) { const push = (minD - d); g.x -= (dx / d) * push; g.y -= (dy / d) * push; g.vx -= (dx / d) * 1.2; g.vy -= (dy / d) * 1.2; g.pulse = 0.2; }
-    // nibble inside the aura
-    if (d < AURA + tp.r * 0.5) {
-      g.hp -= dt * (g.tagged ? 4 : 0.7);
-      L.chomp = 0.18;
-      if (L.nomT <= 0) { sfx.nom(); L.nomT = 0.32; }
-      if (Math.random() < dt * 6) S.parts.push({ x: g.x + rand(-0.2, 0.2), y: g.y + rand(-0.2, 0.2), vx: rand(-0.3, 0.3), vy: rand(-0.6, -0.2), life: 0.4, max: 0.4, size: 0.05, rgb: "200,255,245", kind: "dot" });
-    }
-    g.pulse = Math.max(0, g.pulse - dt); g.splitShow = Math.max(0, g.splitShow - dt);
     if (Math.hypot(g.x - L.x, g.y - L.y) < AURA + 3) S.met[g.type] = true;
   }
+  S.target = S.boom && S.boom.phase !== "pull" ? null : chompTarget();
   // separation
   for (let i = 0; i < S.germs.length; i++) for (let j = i + 1; j < S.germs.length; j++) {
     const a = S.germs[i], b = S.germs[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.001, m = TYPES[a.type].r + TYPES[b.type].r;
     if (d < m) { const p = (m - d) / 2; a.x -= (dx / d) * p; a.y -= (dy / d) * p; b.x += (dx / d) * p; b.y += (dy / d) * p; }
   }
-  // clears: Luko gulps every germ he clears (white blood cells really do swallow germs,
-  // and an antibody tag makes a germ easier to swallow)
+  // germs that wander far off the map are gone (white blood cells really do swallow germs whole;
+  // the player now does the eating with CHOMP and EXPLODE, see eatGerm)
   for (let i = S.germs.length - 1; i >= 0; i--) {
     const g = S.germs[i];
-    if (g.hp <= 0) {
-      const tp = TYPES[g.type];
-      burst(g.x, g.y, tp.glow, RM ? 6 : 10, 2.2);
-      S.gems.push({ type: g.type, x: g.x, y: g.y, vx: rand(-0.6, 0.6), vy: rand(-0.6, 0.6), age: 0 });
-      S.met[g.type] = true;
-      sfx.pip();
-      S.germs.splice(i, 1);
-      startGulp(g);
-    } else if (Math.hypot(g.x - L.x, g.y - L.y) > viewRadius() + 6) { S.germs.splice(i, 1); }
+    if (!g.netted && Math.hypot(g.x - L.x, g.y - L.y) > viewRadius() + 6) S.germs.splice(i, 1);
   }
   updateGulp(dt);
 
@@ -502,7 +712,7 @@ function update(dt) {
     S.fireT[i] -= dt;
     if (S.fireT[i] > 0) continue;
     let best = null, bd = 6.5;
-    for (const g of S.germs) { if (g.type !== i || g.tagged || g.targeted) continue; const d = Math.hypot(g.x - L.x, g.y - L.y); if (d < bd) { bd = d; best = g; } }
+    for (const g of S.germs) { if (g.type !== i || g.tagged || g.targeted || g.netted) continue; const d = Math.hypot(g.x - L.x, g.y - L.y); if (d < bd) { bd = d; best = g; } }
     if (best) { const a = Math.atan2(best.y - L.y, best.x - L.x); S.tags.push({ x: L.x, y: L.y - 0.2, vx: Math.cos(a) * 3 + rand(-2, 2), vy: Math.sin(a) * 3 + rand(-2, 2), target: best, life: 2.4, type: i }); best.targeted = true; sfx.fire(); S.fireT[i] = 0.5; startThrow(best); }
     else S.fireT[i] = 0.2;
   }
@@ -528,14 +738,14 @@ function update(dt) {
       S.gems.splice(i, 1); sfx.chime(m.type);
       if (!S.learned[m.type]) {
         S.meter[m.type] = Math.min(1, S.meter[m.type] + 0.25);
-        if (S.meter[m.type] >= 1) { S.learned[m.type] = true; sfx.learn(); toast(`Antibodies ready for ${TYPES[m.type].name}s!`); }
+        if (S.meter[m.type] >= 1) { S.learned[m.type] = true; sfx.learn(); toast(`Antibodies slow down ${TYPES[m.type].name}s!`); }
       }
       burst(L.x, L.y, TYPES[m.type].glow, 6, 1.4);
     }
   }
 
   // sick meter
-  const target = Math.min(1, S.germs.filter((g) => !g.tagged).length / 20);
+  const target = Math.min(1, S.germs.filter((g) => !g.tagged).length / 24);
   S.sick += (target - S.sick) * Math.min(1, dt * 0.8);
   if (S.sick > 0.97) S.restT += dt; else S.restT = 0;
   if (S.restT > 1.6) return endDay(true);
@@ -572,7 +782,8 @@ const CAM = { px: 0, py: 0, pz: 0, ux: -SP, uz: CP, fy: -CP, fz: -SP, D: 15, asp
 function updateCamera() {
   CAM.aspect = vw / vh;
   CAM.D = vh / (2 * unit * TANY);
-  const tx = S.cam.x, ty = S.cam.y - 0.4, tz = 0.85;
+  const sh = S.shake > 0 ? S.shake * 0.5 : 0;   // EXPLODE shakes the screen for a moment
+  const tx = S.cam.x + (sh ? (Math.random() - 0.5) * sh : 0), ty = S.cam.y - 0.4 + (sh ? (Math.random() - 0.5) * sh : 0), tz = 0.85;
   CAM.px = tx; CAM.py = ty + CAM.D * CP; CAM.pz = tz + CAM.D * SP;
   // view: rows r=(1,0,0), u=(0,-SP,CP), -f=(0,CP,SP); projection folded in (column-major)
   const near = 0.5, far = CAM.D * 4, fy = 1 / TANY, fx = fy / CAM.aspect;
@@ -653,12 +864,48 @@ function queueFloorShadows() {
   const G = lukoGait(), up = G.m && G.air;
   let ls = 0.7 - Math.sin(T * 2.2) * 0.04;
   if (G.m) ls *= up ? 1 - 0.1 * G.m : 1 + 0.06 * G.m;   // the shadow shrinks when he hops and spreads when he lands
+  ls *= lukoBoomScale();
   ground("soft", S.L.x, S.L.y, 0.01, ls, ls, 0, 0, 0, up ? 0.5 : 0.7);
 }
+// how big Luko is during EXPLODE: puffs up, vanishes into the net, then pops back together with a wobble
+function lukoBoomScale() {
+  const B = S.boom; if (!B) return 1;
+  if (B.phase === "puff") { const k = B.t / PUFF_T; return 1 + 0.6 * k * k; }
+  if (B.phase === "net") return 0.05;
+  const k = B.t / 0.45;
+  return k >= 1 ? 1 : 1 - 0.7 * Math.exp(-6 * k) * Math.cos(9 * k);   // springs back with a little overshoot
+}
 function queueFloorGlows() {
-  const ra = 0.16 + 0.07 * Math.sin(T * 3), R0 = AURA / 0.88;
-  ground("ring", S.L.x, S.L.y, 0.02, R0, R0, 0.51, 1, 0.93, ra);
-  for (const r of S.rings) { const k = r.age / r.max, rad = (0.5 + k * 1.3) / 0.88; ground("ring", r.x, r.y, 0.02, rad, rad, 0.55, 1, 0.93, (1 - k) * 0.38); }
+  // a faint ring shows how far CHOMP reaches, and the germ it would grab gets a bright target ring
+  const ra = 0.1 + 0.04 * Math.sin(T * 3), R0 = REACH / 0.88;
+  if (!S.boom) ground("ring", S.L.x, S.L.y, 0.02, R0, R0, 0.51, 1, 0.93, ra);
+  const tg = S.target;
+  if (tg && S.germs.includes(tg)) {
+    const r = TYPES[tg.type].r * 1.9 / 0.88, p = 0.75 + 0.25 * Math.sin(T * 10);
+    ground("ring", tg.x, tg.y, 0.03, r * p, r * p, 1, 0.86, 0.48, 0.95);
+    ground("soft", tg.x, tg.y, 0.025, r * 0.7, r * 0.7, 1, 0.8, 0.4, 0.35);
+  }
+  for (const r of S.rings) {
+    if (r.age < 0) continue;
+    const k = r.age / r.max, rad = (0.5 + k * (r.grow || 1.3)) / 0.88;
+    ground("ring", r.x, r.y, 0.02, rad, rad, 0.55, 1, 0.93, (1 - k) * (r.a || 0.38));
+  }
+  // the sticky net: glowing strands and loops spreading out from where Luko burst
+  const N = S.net;
+  if (N) {
+    const grow = Math.min(1, N.age / 0.22), R = NET_R * (1 - Math.pow(1 - grow, 3)), fade = Math.min(1, (N.max - N.age) / 0.6);
+    const a = 0.75 * fade, cr = 1, cg = 0.86, cb = 0.62;
+    for (let k = 1; k <= 3; k++) { const rr = (R * k / 3 + Math.sin(T * 3 + k) * 0.06) / 0.88; ground("ring", N.x, N.y, 0.03, rr, rr, cr, cg, cb, a * (k === 3 ? 0.9 : 0.6)); }
+    const SPOKES = 12;
+    for (let s = 0; s < SPOKES; s++) {
+      const ang = (s / SPOKES) * TAU + 0.13;
+      for (let d = 0.6; d < R; d += 0.26) {
+        const wob = Math.sin(d * 2.2 + s * 1.7) * 0.07;
+        ground("dot", N.x + Math.cos(ang + wob) * d, N.y + Math.sin(ang + wob) * d, 0.03, 0.07, 0.07, cr, cg, cb, a * 0.8);
+      }
+    }
+  }
+  for (const g of S.germs) if (g.netted) { const c = rgbOf(TYPES[g.type].glow); bill("halo", g.x, g.y, GERM_H + TYPES[g.type].r, (TYPES[g.type].r * 4) / 64, 0, 1, 1, 1, 0.9, 0.6, 0.7); ground("soft", g.x, g.y, 0.03, 0.5, 0.5, c[0], c[1], c[2], 0.4); }
   for (const m of S.gems) { const c = rgbOf(TYPES[m.type].glow); bill("halo", m.x, m.y, 0.34 + Math.sin(T * 4 + m.x) * 0.07, 0.64 / 64, 0, 1, 1, c[0], c[1], c[2], 0.55); }
   for (const p of PROPS) bill("halo", p.x, p.y, p.h + p.r, (p.r * (p.red ? 2.4 : 4)) / 64, 0, 1, 1, 1, p.red ? 0.28 : 0.93, p.red ? 0.34 : 0.84, p.red ? 0.22 : 0.4);
 }
@@ -683,8 +930,8 @@ function queueGerm(g) {
   const tp = TYPES[g.type], G = germArt(g.type);
   const Rw = tp.r * (0.72 + 0.28 * Math.max(0, g.hp));
   const z = GERM_H + tp.r + Math.sin(T * 3 + g.off) * 0.07;
-  const tilt = Math.sin(T * 2 + g.off) * 0.04 + (g.tagged ? Math.sin(T * 9 + g.off) * 0.12 : 0);
-  const pu = 1 + g.pulse * 0.6;
+  const tilt = Math.sin(T * 2 + g.off) * 0.04 + (g.tagged ? Math.sin(T * 9 + g.off) * 0.12 : 0) + (g.netted ? Math.sin(T * 26 + g.off) * 0.22 : 0);
+  const pu = 1 + g.pulse * 0.6 + (g.flee > 0 ? 0.08 * Math.sin(T * 30) : 0);
   bill(germFrame(g), g.x, g.y, z, Rw / G.r, tilt, pu, 2 - pu, 1, 1, 1, 1);
   if (g.tagged) bill("ab", g.x + Rw * 0.6, g.y - SP * Rw * 0.75, z + CP * Rw * 0.75, (Rw * 0.55 * 1.5) / 96, 0.5, 1, 1, 1, 1, 1, 1);
 }
@@ -721,7 +968,19 @@ function queueLuko() {
     }
   }
   if (L.turnPop > 0) { const c = L.turnPop / 0.14; scx *= 1 + 0.1 * c; scy *= 1 - 0.09 * c; }   // a little squash sells the turn
-  bill(name, L.x, L.y, z, BODY_U / GA.bodyH, rr, scx, scy, 1, 1, 1, 1, pv);
+  let tint = 1;
+  const B = S.boom;
+  if (B) {
+    if (B.phase === "net") return;   // he's burst into the net; he pulls back together in a moment
+    const bs = lukoBoomScale();
+    if (B.phase === "puff") {
+      // puffing up: cheeks full, trembling, glowing brighter, about to pop
+      const k = B.t / PUFF_T;
+      name = "WF"; pv = 0; scx = bs * (1 + 0.05 * Math.sin(T * 55)); scy = bs * (1 - 0.04 * Math.sin(T * 55));
+      rr = Math.sin(T * 47) * 0.07 * k; z = LUKO_H; tint = 1 + 0.35 * k * k;
+    } else { scx *= bs; scy *= bs; pv = 0; }
+  }
+  bill(name, L.x, L.y, z, BODY_U / GA.bodyH, rr, scx, scy, tint, tint, tint, 1, pv);
 }
 // where Luko is in his stride: 4 stepped poses per stride (land, spring, land, spring), scaled by how fast he swims
 function lukoGait() {
@@ -730,7 +989,7 @@ function lukoGait() {
 }
 // a cleared germ, dizzy, getting slurped into Luko's open mouth
 function queueSlurp(s) {
-  const k = Math.min(1, s.t / s.dur), e = k * k;
+  const k = clamp(s.t / s.dur, 0, 1), e = k * k;
   const tp = TYPES[s.g.type], G = germArt(s.g.type), Rw = tp.r * 0.72 * (1 - 0.6 * e);
   const sl = BODY_U / GA.bodyH, up = -GA.mouth[1] * sl, bz = LUKO_H + Math.sin(T * 2.2) * 0.05 - HOP[4];
   const mx = S.L.x + GA.mouth[0] * sl, my = S.L.y - SP * up, mz = bz + CP * up;
@@ -966,7 +1225,7 @@ function createRenderer() {
       CBUF[n * 3] = c[0]; CBUF[n * 3 + 1] = c[1]; CBUF[n * 3 + 2] = c[2]; n++;
     };
     push(S.L.x, S.L.y, LUKO_H + BODY_U / 2, 2.4, 0.22, [0.55, 1, 0.92]);
-    for (const f of S.flashes) push(f.x, f.y, 0.75, 2.8, 1.7 * (f.life / f.max), f.c);
+    for (const f of S.flashes) push(f.x, f.y, 0.75, f.rw || 2.8, 1.7 * (f.life / f.max), f.c);
     const near = PROPS.slice().sort((a, b) => Math.hypot(a.x - S.L.x, a.y - S.L.y) - Math.hypot(b.x - S.L.x, b.y - S.L.y));
     for (const p of near) push(p.x, p.y, p.h + p.r, p.r * (p.red ? 5 : 11), p.red ? 0.5 : 1, p.red ? [1, 0.32, 0.38] : [1, 0.88, 0.72]);
     for (let i = n; i < 8; i++) { LBUF[i * 4 + 2] = 1; LBUF[i * 4 + 3] = 0; }
@@ -1068,21 +1327,62 @@ function drawHUD() {
   cx.save(); cx.beginPath(); cx.arc(mnx, mny, 7.5 * hs, 0, TAU); cx.clip();
   cx.fillStyle = "#d9d6ff"; cx.beginPath(); cx.arc(mnx, mny, 7.5 * hs, 0, TAU); cx.arc(mnx + 3.5 * hs, mny - 2.5 * hs, 6.5 * hs, 0, TAU); cx.fill("evenodd");
   cx.restore();
-  // antibody meters
-  const my2 = vh - insets.b - 42 * hs, gap = 66 * hs, rr = 24 * hs;
+  // antibody meters: small and up top, out of the thumbs' way, so nobody mistakes them for buttons
+  // (a row beside the thermometer; a column under it if the screen is too narrow for the row)
+  const rr = 14 * hs, gap = 40 * hs, rowX = tx + tw + 34 * hs, rowY = ty + 26 * hs;
+  const asRow = rowX + gap * 2 + rr + 10 * hs < ax - ar - 16 * hs;
   for (let i = 0; i < 3; i++) {
-    const tp = TYPES[i], x = vw / 2 + (i - 1) * gap, v = S.meter[i], learned = S.learned[i];
-    cx.fillStyle = "rgba(6,30,38,0.6)"; cx.beginPath(); cx.arc(x, my2, rr + 6 * hs, 0, TAU); cx.fill();
-    cx.lineWidth = 6 * hs; cx.strokeStyle = "rgba(255,255,255,0.13)"; cx.beginPath(); cx.arc(x, my2, rr, 0, TAU); cx.stroke();
-    if (learned) drawHalo(tp.glow, x, my2, rr * 2.4, 0.42 + 0.15 * Math.sin(T * 4 + i));
+    const tp = TYPES[i], v = S.meter[i], learned = S.learned[i];
+    const x = asRow ? rowX + i * gap : tx + tw / 2, my2 = asRow ? rowY : ty + th + br * 2 + 26 * hs + i * gap;
+    cx.lineWidth = 4 * hs; cx.strokeStyle = "rgba(255,255,255,0.12)"; cx.beginPath(); cx.arc(x, my2, rr, 0, TAU); cx.stroke();
+    if (learned) drawHalo(tp.glow, x, my2, rr * 2.3, 0.38 + 0.12 * Math.sin(T * 4 + i));
     cx.strokeStyle = learned ? tp.light : tp.base; cx.beginPath(); cx.arc(x, my2, rr, -Math.PI / 2, -Math.PI / 2 + v * TAU); cx.stroke();
     cx.globalAlpha = S.met[i] || learned ? 1 : 0.4;
-    cx.fillStyle = learned ? "#ffffff" : tp.light; cx.strokeStyle = learned ? "#ffffff" : tp.light;
-    if (atlasReady) drawSpr(cx, atlasImg, "tok" + i, x, my2, (25 * hs) / 92);
-    else if (tp.shape === "ring") { cx.lineWidth = 3.4 * hs; shapePath(cx, "ring", x, my2, 8 * hs, 0); cx.stroke(); }
-    else { shapePath(cx, tp.shape, x, my2 + (tp.shape === "tri" ? 2 * hs : 0), 11 * hs, 0); cx.fill(); }
+    if (atlasReady) drawSpr(cx, atlasImg, "tok" + i, x, my2, (15 * hs) / 92);
     cx.globalAlpha = 1;
   }
+  // GOBBLE ×7! over Luko after an EXPLODE
+  if (S.word) {
+    const w = S.word, k = w.t / w.max, p = project(S.L.x, S.L.y, LUKO_H + BODY_U + 0.5);
+    const pop = k < 0.15 ? 0.4 + (k / 0.15) * 0.8 : k < 0.25 ? 1.2 - ((k - 0.15) / 0.1) * 0.2 : 1;
+    const sz = Math.round(40 * hs * pop);
+    cx.save(); cx.globalAlpha = k > 0.75 ? (1 - k) / 0.25 : 1;
+    cx.translate(p[0], p[1] - k * 30 * hs); cx.rotate(-0.06);
+    cx.font = `800 ${sz}px "Baloo 2", "Arial Rounded MT Bold", sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
+    cx.lineJoin = "round"; cx.lineWidth = 8 * hs; cx.strokeStyle = "#3d0a24"; cx.strokeText(w.text, 0, 0);
+    cx.fillStyle = "#ffd27a"; cx.fillText(w.text, 0, 0);
+    cx.restore();
+  }
+  // the white pop of the explosion
+  if (S.white > 0) { cx.fillStyle = `rgba(255,240,250,${(S.white / 0.22) * 0.55})`; cx.fillRect(0, 0, vw, vh); }
+  updateButtons();
+}
+// keep the DOM buttons in step with the game (only touch the DOM when something changed)
+const UI = { pips: -1, ready: null, chompTip: null, boomTip: null };
+function updateButtons() {
+  const pips = Math.round(S.charge / CHARGE_PER), ready = S.charge >= 1 && !S.boom;
+  if (pips !== UI.pips) { UI.pips = pips; $("boomBtn").style.setProperty("--p", String(pips / 5)); }
+  if (ready !== UI.ready) { UI.ready = ready; $("boomBtn").classList.toggle("ready", ready); }
+  const ct = S.chomps < 3 && !!S.target && !S.boom;
+  const bt = ready && S.booms < 2;
+  const ctShow = ct && !bt;   // one tip at a time
+  if (ctShow !== UI.chompTip) { UI.chompTip = ctShow; $("chompTip").hidden = !ctShow; }
+  if (bt !== UI.boomTip) { UI.boomTip = bt; $("boomTip").hidden = !bt; }
+}
+// the button faces: Luko's wide-open gulp for CHOMP, Luko puffed up in a starburst for EXPLODE
+function drawButtonIcons() {
+  if (!atlasReady) return;
+  const c1 = $("chompIcon"), g1 = c1.getContext("2d");
+  g1.clearRect(0, 0, c1.width, c1.height);
+  const k1 = (c1.height * 0.82) / GA.bodyH;
+  drawSpr(g1, atlasImg, "L4", c1.width / 2 - GA.mouth[0] * k1 * 0.3, c1.height * 0.97, k1);
+  const c2 = $("boomIcon"), g2 = c2.getContext("2d"), W2 = c2.width, H2 = c2.height;
+  g2.clearRect(0, 0, W2, H2);
+  g2.save(); g2.translate(W2 / 2, H2 * 0.55); g2.beginPath();
+  for (let i = 0; i < 24; i++) { const a = (i / 24) * TAU, r = i % 2 ? H2 * 0.3 : H2 * 0.5; g2.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  g2.closePath(); g2.fillStyle = "#ffe08a"; g2.fill(); g2.restore();
+  const k2 = (H2 * 0.62) / GA.bodyH;
+  drawSpr(g2, atlasImg, "WF", W2 / 2, H2 * 0.88, k2);
 }
 function roundRect(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
 function drawJoy() {
@@ -1152,7 +1452,7 @@ function frame(ts) {
 /* ---------- screens ---------- */
 const $ = (id) => document.getElementById(id);
 function endDay(rest) {
-  S.over = true; joy.active = false;
+  S.over = true; joy.active = false; fingers.clear();
   for (let i = 0; i < 3; i++) S.memory[i] = S.memory[i] || S.met[i];
   $("endEyebrow").textContent = `Day ${S.day} done`;
   $("endTitle").textContent = rest ? "Sam needs a rest." : "The moon is up!";
@@ -1172,17 +1472,18 @@ function endDay(rest) {
     card.append(c, nm, sm); box.append(card);
   });
   $("endHint").hidden = !saved;
-  $("endScreen").hidden = false; $("controls").hidden = true; toastEl.hidden = true;
+  $("endScreen").hidden = false; $("controls").hidden = true; $("actions").hidden = true; toastEl.hidden = true;
   sfx.day();
 }
 function startDay(keep) {
   initAudio();
   if (keep) S.day += 1;
   resetDay(keep);
-  $("startScreen").hidden = true; $("endScreen").hidden = true; $("pauseScreen").hidden = true; $("controls").hidden = false;
+  $("startScreen").hidden = true; $("endScreen").hidden = true; $("pauseScreen").hidden = true; $("controls").hidden = false; $("actions").hidden = false;
+  drawButtonIcons();
 }
 function setPaused(p) {
-  S.paused = p; joy.active = false;
+  S.paused = p; joy.active = false; fingers.clear();
   $("pauseScreen").hidden = !p;
   if (AC) p ? AC.suspend() : AC.resume();
 }

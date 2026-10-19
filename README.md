@@ -5,9 +5,10 @@ A free game for kids (about 2nd grade) about how the body learns to fight germs.
 **Play:** open the GitHub Pages link for this repo on a phone or tablet held sideways, or on a computer.
 
 ## How to play
-- Touch anywhere and slide to swim (arrow keys or WASD on a computer).
-- Luko gulps germs all by himself.
-- Scoop up the shapes germs drop to build antibodies. Once a shape is learned, Luko throws antibodies at that germ.
+- Touch the screen and slide to swim (arrow keys or WASD on a computer).
+- Swim close to a germ and tap the gold **CHOMP** button to eat it (Space on a computer).
+- Every germ you eat fills the pink **EXPLODE** button. When it glows, tap it: Luko bursts into a sticky net and gobbles every germ nearby (E on a computer). Real white blood cells really do throw sticky nets at germs.
+- Scoop up the shapes germs drop. Once Luko learns a shape, he throws antibodies that slow that germ down.
 - The sparkle button turns lighting and glow effects on and off.
 
 ## What to tell us
