@@ -1,6 +1,6 @@
 # Luko: playtest build
 
-Current version: **v0.14**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
+Current version: **v0.15**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
 
 A free game for kids (about 2nd grade) about how the body learns to fight germs. You play Luko, a clay white blood cell who gulps germs and learns their shapes so the body is ready next time.
 
@@ -14,7 +14,8 @@ A free game for kids (about 2nd grade) about how the body learns to fight germs.
 - Every germ you eat fills the pink **EXPLODE** button. When it glows, tap it: Luko bursts into a sticky net and gobbles every germ nearby (E on a computer). Real white blood cells really do throw sticky nets at germs.
 - Every germ the EXPLODE gobbles drops a coin. After each day, you can spend coins in the optional **Night Shop** on power-ups that last for the rest of that run: Big Chomp, Fast Swim, Quick Explode, Big Net, Mini Luko, and the **Big Sneeze** (AH-CHOO! sticky snot pulls every germ to Luko and fills EXPLODE, so you can gobble them all in one combo; Q on a computer). Your run is saved on your device: the start screen offers Continue (where you left off) or New run (Day 1, no coins, no power-ups).
 - Each new day the germs get faster and bolder, and GERM RUSH gangs charge straight at Luko. Big EXPLODEs pay a combo bonus: +5 coins for every 10 germs.
-- Steer around obstacles. Anything standing up with a dark shadow blocks you: big red blood cells, stacks of red cells, platelet clots, tissue bumps and wobbly fat droplets. Flat, faded cells in the floor are just scenery, so swim right over them. Mint snot puddles slow everyone down, germs most of all, so they're a good place to catch germs.
+- Steer around obstacles. Anything standing up with a dark shadow blocks you: red blood cells, platelet clots, tissue bumps and wobbly fat droplets. Flat, faded cells in the floor are just scenery, so swim right over them. Mint snot puddles slow everyone down, germs most of all.
+- The body has different places, and each has its own floor color: open ground (teal), snot traps (green: a horseshoe of tissue around a snot pool, so chase germs in and they get stuck), mazes (purple), tissue walls with gates (pink), and rivers of rolling red blood cells you time your way through (blue).
 - Scoop up the shapes germs drop. Once Luko learns a shape, he throws antibodies that slow that germ down, and a mini Luko joins him.
 - The sparkle button turns lighting and glow effects on and off.
 
