@@ -189,11 +189,11 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 <div class="actions" id="actions" hidden>
   <div class="tip" id="chompTip" hidden>Tap to CHOMP!</div>
   <div class="tip" id="boomTip" hidden>EXPLODE!</div>
-  <div class="tip" id="sneezeTip" hidden>Sneeze them away!</div>
+  <div class="tip" id="sneezeTip" hidden>Sneeze them in!</div>
   <button class="act" id="boomBtn" type="button" aria-label="Explode to eat every germ nearby">
     <canvas id="boomIcon" width="128" height="128" aria-hidden="true"></canvas>
   </button>
-  <button class="act" id="sneezeBtn" type="button" aria-label="Big sneeze: blast every germ away" hidden>
+  <button class="act" id="sneezeBtn" type="button" aria-label="Big sneeze: sticky snot pulls every germ to Luko" hidden>
     <canvas id="sneezeIcon" width="112" height="96" aria-hidden="true"></canvas><span class="uses" id="sneezeUses">1</span>
   </button>
   <button class="act" id="chompBtn" type="button" aria-label="Chomp the nearest germ">
@@ -205,7 +205,7 @@ h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);lin
 
 <div class="overlay" id="startScreen">
   <div class="card">
-    <p class="eyebrow">Playtest · v0.11</p>
+    <p class="eyebrow">Playtest · v0.12</p>
     <div class="hero"><canvas id="hero" aria-label="Luko gulping a germ"></canvas><h1 id="title"><span id="titleText">Luko</span><canvas id="logo" width="440" height="197" aria-hidden="true" hidden></canvas></h1></div>
     <ul class="how">
       <li><b>1</b><span>Slide your finger to swim.</span></li>
@@ -343,7 +343,7 @@ function germFrame(g) {
   const G = germArt(g.type);
   if (g.netted && G.netted) return G.netted;            // stuck in EXPLODE's sticky net: dizzy, tangled in gold
   if (g.splitShow > 0 && G.split) return G.split;
-  if (g.flee > 0 && G.scared) return G.scared;          // scooting away from Luko: big scared eyes, sweat drop
+  if ((g.flee > 0 || g.stuck > 0 || g.rush > 0) && G.scared) return G.scared;          // scooting away from Luko: big scared eyes, sweat drop
   if (g.tagged && G.tagged) return G.tagged;
   return G.float[FLOAT_SEQ[Math.floor(T * 7 + g.off * 3) % 4]];
 }
@@ -393,6 +393,8 @@ const sfx = {
   buy() { [659.3, 830.6, 987.8, 1318.5].forEach((f, k) => tone(f, "triangle", 0.1, 0.25, null, k * 0.06)); noise(3000, 1, 0.03, 0.15); },
   inhale() { tone(240, "triangle", 0.05, 0.36, 420); tone(300, "triangle", 0.06, 0.38, 560, 0.36); noise(1200, 0.7, 0.03, 0.3); },
   choo() { noise(1800, 0.6, 0.38, 0.35); noise(600, 0.8, 0.22, 0.3); tone(520, "triangle", 0.12, 0.3, 160); tone(90, "sine", 0.25, 0.4, 40); },
+  rush() { tone(520, "sawtooth", 0.035, 0.28, 260); tone(390, "triangle", 0.05, 0.3, 200, 0.06); noise(700, 1.5, 0.05, 0.25); },
+  combo(n) { [1046.5, 1318.5, 1568, 2093].slice(0, n + 1).forEach((f, k) => tone(f, "triangle", 0.1, 0.3, null, 0.25 + k * 0.08)); },
   ready() { [880, 1108.7, 1318.5, 1760].forEach((f, k) => tone(f, "triangle", 0.09, 0.22, null, k * 0.06)); },
   nope() { tone(300, "triangle", 0.06, 0.09, 240); tone(240, "triangle", 0.05, 0.1, 200, 0.09); },
   // a footfall: the nom's soft low "blup", quieter, with a wet splish and a tiny droplet on top
@@ -447,7 +449,7 @@ const SHOP = [
   { id: "quick", name: "Quick Explode", what: "Fewer germs to fill EXPLODE", prices: [25, 50] },
   { id: "net", name: "Big Net", what: "EXPLODE catches germs farther away", prices: [20, 40, 60] },
   { id: "mini", name: "Mini Luko", what: "Start every day with a buddy", prices: [30, 60] },
-  { id: "sneeze", name: "Big Sneeze", what: "AH-CHOO! Blast every germ away", prices: [40, 80] }
+  { id: "sneeze", name: "Big Sneeze", what: "AH-CHOO! Sticky snot pulls every germ to you", prices: [40, 80] }
 ];
 const SAVE_KEY = "luko.save.v1";
 function loadSave() {
@@ -469,10 +471,24 @@ function applyUpgrades() {
   const b = document.getElementById("boomBtn"); if (b) b.style.setProperty("--seg", (360 / (5 - u.quick)) + "deg");
 }
 applyUpgrades();
+// how hard today is: every new day the germs get faster, bolder and quicker to copy themselves,
+// and from Day 2 a GERM RUSH gang charges straight at Luko now and then (they still never hurt him)
+function dayLevel() {
+  const lv = Math.max(0, S.day - 1);
+  return {
+    lv,
+    spd: Math.min(1.75, 1 + 0.12 * lv),            // all germ movement
+    tired: Math.max(0.9, 2.2 - 0.22 * lv),         // rest after a dash: shorter = harder to catch
+    split: Math.max(2.6, 4.5 - 0.35 * lv),         // seconds between copies
+    spawn: Math.max(0.65, 1 - 0.07 * lv),          // spawn interval multiplier
+    gang: Math.min(3, Math.floor(lv / 2)),         // extra germs per gang
+    rush: lv >= 1 ? Math.max(8, 17 - 1.5 * lv) : 0 // seconds between germ rushes (0 = none)
+  };
+}
 const miniGlow = (type) => (type < 3 ? TYPES[type].glow : "214,196,255");
 let T = 0;
 
-function makeGerm(type, x, y) { return { type, x, y, vx: 0, vy: 0, hp: 1, tagged: false, targeted: false, off: Math.random() * 10, pulse: 0, splitShow: 0, flee: 0, tired: 0, wa: Math.random() * TAU, netted: false }; }
+function makeGerm(type, x, y) { return { type, x, y, vx: 0, vy: 0, hp: 1, tagged: false, targeted: false, off: Math.random() * 10, pulse: 0, splitShow: 0, flee: 0, tired: 0, wa: Math.random() * TAU, netted: false, stuck: 0, rush: 0 }; }
 // germs spawn just past the edge of the visible floor, which reaches farther up the screen than down
 function viewRadius() { return Math.max(CAM.ext.x, CAM.ext.n, CAM.ext.s) + 1; }
 function spawnGerm(type) {
@@ -650,13 +666,20 @@ function boomPull() {
   S.boom = { phase: "pull", t: 0, n: list.length };
   L.g = { step: PEAK, t: 0, fast: 2, hold: list.length > 0, boomEnd: true };
   const gap = Math.min(0.09, 1.1 / Math.max(1, list.length));
+  const bonus = 5 * Math.floor(list.length / 10);   // COMBO: every 10 germs in one EXPLODE adds 5 bonus coins
   list.forEach((g, i) => {
     S.slurps.push({ g, t: -i * gap, dur: 0.3, x0: g.x, y0: g.y, n: i });
     eatGerm(g, 1, true);
     const a = rand(0, TAU), v = rand(1.2, 2.6);
     S.coins.push({ x: g.x, y: g.y, z: GERM_H + 0.3, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: rand(3, 4.5), age: -i * gap, off: rand(0, TAU) });
   });
-  if (list.length) S.word = { text: list.length > 1 ? `GOBBLE ×${list.length}!` : "GOBBLE!", t: 0, max: 1.3 };
+  // the combo bonus bursts out of Luko like a fountain once he's swallowed the lot
+  for (let c = 0; c < bonus; c++) {
+    const a = rand(0, TAU), v = rand(1.5, 3.5);
+    S.coins.push({ x: L.x, y: L.y, z: LUKO_H + 0.6, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: rand(5, 7), age: -list.length * gap - 0.2 - c * 0.04, off: rand(0, TAU) });
+  }
+  if (list.length) S.word = { text: list.length > 1 ? `GOBBLE ×${list.length}!` : "GOBBLE!", sub: bonus ? `COMBO +${bonus} COINS!` : null, t: 0, max: bonus ? 1.8 : 1.3 };
+  if (bonus) sfx.combo(Math.min(3, bonus / 5));
   else S.word = { text: "BOOM!", t: 0, max: 0.9 };
 }
 function updateBoom(dt) {
@@ -738,16 +761,17 @@ function sneezeBlast() {
   S.flashes.push({ x: L.x, y: L.y, life: 0.25, max: 0.25, c: [0.6, 1, 0.85], rw: 12 });   // short, so the CHOO pose reads
   for (let i = 0; i < (RM ? 14 : 40); i++) {
     const a = rand(0, TAU), v = rand(4, 10);
-    S.parts.push({ x: L.x, y: L.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.4, 0.8), max: 0.8, size: rand(0.06, 0.14), rgb: i % 3 ? "190,255,232" : "255,255,255", kind: "dot" });
+    S.parts.push({ x: L.x, y: L.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.4, 0.8), max: 0.8, size: rand(0.08, 0.16), rgb: i % 3 ? "170,240,150" : "220,255,200", kind: "dot" });
   }
-  for (let i = S.germs.length - 1; i >= 0; i--) {
-    const g = S.germs[i], dx = g.x - L.x, dy = g.y - L.y, d = Math.hypot(dx, dy) || 0.001;
-    if (d > R) continue;
-    S.germs.splice(i, 1);
-    S.met[g.type] = true;
-    const v = rand(9, 14);
-    S.blown.push({ type: g.type, x: g.x, y: g.y, z: GERM_H + TYPES[g.type].r, vx: (dx / d) * v, vy: (dy / d) * v, vz: rand(2, 4), rot: 0, spin: rand(-14, 14), life: 1 });
+  // sticky snot lands on every germ on screen and drags it in: mucus really does trap germs (C8)
+  let caught = 0;
+  for (const g of S.germs) {
+    if (Math.hypot(g.x - L.x, g.y - L.y) > R || g.netted) continue;
+    g.stuck = 2.8; g.flee = 0; g.rush = 0; g.pulse = 0.3; S.met[g.type] = true; caught++;
   }
+  // ...and the sneeze fills EXPLODE, so the clump is ready to gobble
+  if (caught) { S.charge = 1; S.readyShown = true; S.crowdT = 1.2; }
+  S.word = { text: "AH-CHOO!", sub: caught ? "SNOT TRAP!" : null, t: 0, max: 1.4 };
   sfx.choo();
 }
 function updateSneeze(dt) {
@@ -768,7 +792,7 @@ function pressFx(id) { const b = $(id); b.classList.add("down"); setTimeout(() =
 function resetDay(keepMemory) {
   if (!keepMemory) { S.memory = [false, false, false]; S.day = 1; }
   Object.assign(S, { running: true, paused: false, over: false, t: 0, germs: [], gems: [], tags: [], parts: [], rings: [], flashes: [], slurps: [], sick: 0, restT: 0, spawnT: 2.2, splitT: 7, fireT: [0, 0, 0],
-    charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, minis: [],
+    charge: 0, boom: null, net: null, shake: 0, white: 0, word: null, target: null, minis: [], rushT: 9, crowdT: 0,
     coins: [], dayCoins: 0, coinPop: 0, coinStreak: 0, sneezes: SAVE.up.sneeze, sneeze: null, blown: [] });
   applyUpgrades();
   S.L = newLuko();
@@ -780,7 +804,8 @@ function resetDay(keepMemory) {
   S.meter = S.memory.map((m) => (m ? 1 : 0));
   // the first germs start close and in view, so there is something to catch right away
   [[2.6, -1.2], [-3.4, -2.2], [1.2, 2.4], [3.6, 1.4], [-2.4, 1.8], [-0.6, -3.6]].forEach(([x, y], i) => S.germs.push(makeGerm(i % 3, x, y)));
-  if (S.memory.some(Boolean)) setTimeout(() => toast("Luko remembers! His mini Lukos are back."), 400);
+  if (S.day >= 2) setTimeout(() => toast(`Day ${S.day}: the germs got faster!`), 300);
+  if (S.memory.some(Boolean)) setTimeout(() => toast("Luko remembers! His mini Lukos are back."), S.day >= 2 ? 2700 : 400);
 }
 
 /* ---------- toast ---------- */
@@ -888,17 +913,31 @@ function update(dt) {
   const party = S.t > DAY_LEN - 12;
   S.spawnT -= dt;
   // germs arrive in little gangs, so there is always a crowd worth EXPLODING
+  const DL = dayLevel();
   if (S.spawnT <= 0 && S.t < DAY_LEN - 1.5 && S.germs.length < 48) {
-    const n = party ? 6 : S.t < 10 ? 3 : 4;
+    const n = (party ? 6 : S.t < 10 ? 3 : 4) + DL.gang;
     spawnGerm();
     const lead = S.germs[S.germs.length - 1];
     for (let i = 1; i < n; i++) S.germs.push(makeGerm(Math.random() < 0.6 ? lead.type : (Math.random() * 3) | 0, lead.x + rand(-0.9, 0.9), lead.y + rand(-0.9, 0.9)));
-    S.spawnT = party ? 1.8 : S.t < 10 ? 2.4 : 2.5;
+    S.spawnT = (party ? 1.8 : S.t < 10 ? 2.4 : 2.5) * DL.spawn;
+  }
+  // GERM RUSH: a gang charges in from the edge straight at Luko, then scatters (a crowd to EXPLODE)
+  if (DL.rush && S.t > 6 && S.t < DAY_LEN - 4 && S.germs.length < 44) {
+    S.rushT -= dt;
+    if (S.rushT <= 0) {
+      S.rushT = DL.rush * rand(0.85, 1.15);
+      const n = 5 + DL.lv, type = (Math.random() * 3) | 0;
+      spawnGerm(type);
+      const lead = S.germs[S.germs.length - 1];
+      lead.rush = 2.6;
+      for (let i = 1; i < n; i++) { const g = makeGerm(Math.random() < 0.7 ? type : (Math.random() * 3) | 0, lead.x + rand(-1, 1), lead.y + rand(-1, 1)); g.rush = 2.6; S.germs.push(g); }
+      toast("GERM RUSH!"); sfx.rush();
+    }
   }
   // germs copy themselves (the ones nobody catches)
   S.splitT -= dt;
   if (S.splitT <= 0) {
-    S.splitT = 4.5;
+    S.splitT = DL.split;
     const cand = S.germs.filter((g) => !g.tagged && !g.netted);
     if (cand.length && S.germs.length < 48) {
       const g = cand[(Math.random() * cand.length) | 0];
@@ -917,20 +956,38 @@ function update(dt) {
     const dx = L.x - g.x, dy = L.y - g.y, d = Math.hypot(dx, dy) || 0.001;
     g.pulse = Math.max(0, g.pulse - dt); g.splitShow = Math.max(0, g.splitShow - dt);
     if (g.netted) { g.vx *= 1 - Math.min(1, dt * 10); g.vy *= 1 - Math.min(1, dt * 10); continue; }   // stuck in the net
-    const sp = g.tagged ? 0.5 : 1;
+    // stuck in sneeze snot: dragged in toward Luko, then held in a wobbly clump around him
+    if (g.stuck > 0) {
+      g.stuck -= dt;
+      const want = d > 1.9 ? Math.min(9, d * 3) : 0;
+      g.vx += ((dx / d) * want - g.vx) * Math.min(1, dt * 6); g.vy += ((dy / d) * want - g.vy) * Math.min(1, dt * 6);
+      g.x += g.vx * dt; g.y += g.vy * dt;
+      const minS = LUKO_R + tp.r * 0.9;
+      if (d < minS) { g.x -= (dx / d) * (minS - d); g.y -= (dy / d) * (minS - d); }
+      if (g.stuck <= 0) g.tired = 1;
+      continue;
+    }
+    const sp = (g.tagged ? 0.5 : 1) * DL.spd;
     g.tired = Math.max(0, g.tired - dt);
-    if (skittish && !g.tagged && g.flee <= 0 && g.tired <= 0 && d < FLEE_R) { g.flee = FLEE_T; g.pulse = 0.22; g.side = Math.random() < 0.5 ? -1 : 1; }
     let tx, ty;
+    if (g.rush > 0) {
+      // charging in: straight at Luko, fast; when it gets close (or runs out of steam) the gang scatters
+      g.rush -= dt;
+      tx = (dx / d) * 3.4 * DL.spd; ty = (dy / d) * 3.4 * DL.spd;
+      if (d < 1.6 || g.rush <= 0) { g.rush = 0; g.flee = FLEE_T * 0.7; g.side = Math.random() < 0.5 ? -1 : 1; g.pulse = 0.25; }
+    } else {
+    if (skittish && !g.tagged && g.flee <= 0 && g.tired <= 0 && d < FLEE_R) { g.flee = FLEE_T; g.pulse = 0.22; g.side = Math.random() < 0.5 ? -1 : 1; }
     if (g.flee > 0) {
-      g.flee -= dt; if (g.flee <= 0) g.tired = TIRED_T;
-      tx = (-dx / d) * FLEE_SP + (-dy / d) * 0.9 * g.side; ty = (-dy / d) * FLEE_SP + (dx / d) * 0.9 * g.side;
+      g.flee -= dt; if (g.flee <= 0) g.tired = DL.tired;
+      tx = (-dx / d) * FLEE_SP * DL.spd + (-dy / d) * 0.9 * g.side; ty = (-dy / d) * FLEE_SP * DL.spd + (dx / d) * 0.9 * g.side;
     } else if (d > 5.5) { tx = (dx / d) * 1.1 * sp; ty = (dy / d) * 1.1 * sp; }
     else {
       g.wa += (Math.sin(T * 0.9 + g.off * 7) * 1.6) * dt;
       const w = (g.tired > 0 ? 0.3 : 0.65) * sp;
       tx = Math.cos(g.wa) * w + (dx / d) * 0.15; ty = Math.sin(g.wa) * w + (dy / d) * 0.15;
     }
-    const kk = Math.min(1, dt * (g.flee > 0 ? 5 : 2));
+    }
+    const kk = Math.min(1, dt * (g.flee > 0 || g.rush > 0 ? 5 : 2));
     g.vx += (tx - g.vx) * kk; g.vy += (ty - g.vy) * kk;
     g.x += g.vx * dt; g.y += g.vy * dt;
     // bounce off Luko
@@ -1160,6 +1217,11 @@ function queueFloorGlows() {
     }
   }
   for (const m of S.minis) { const c = rgbOf(miniGlow(m.type)), s = miniPop(m); ground("soft", m.x, m.y, 0.02, 0.5 * s, 0.5 * s, c[0], c[1], c[2], 0.45); }
+  for (const g of S.germs) if (g.stuck > 0) {
+    const a = Math.min(1, g.stuck / 0.6) * 0.7, dx = S.L.x - g.x, dy = S.L.y - g.y, d = Math.hypot(dx, dy) || 1;
+    ground("soft", g.x, g.y, 0.03, 0.55, 0.55, 0.55, 0.95, 0.4, a * 0.6);
+    for (let s = 0.35; s < d - 0.5; s += 0.32) ground("dot", g.x + (dx / d) * s, g.y + (dy / d) * s + Math.sin(s * 3 + T * 6) * 0.05, 0.03, 0.06, 0.06, 0.6, 1, 0.45, a * 0.7);
+  }
   for (const g of S.germs) if (g.netted) { const c = rgbOf(TYPES[g.type].glow); bill("halo", g.x, g.y, GERM_H + TYPES[g.type].r, (TYPES[g.type].r * 3.2) / 64, 0, 1, 1, 1, 0.9, 0.6, 0.3); ground("soft", g.x, g.y, 0.03, 0.5, 0.5, c[0], c[1], c[2], 0.3); }
   for (const m of S.gems) { const c = rgbOf(TYPES[m.type].glow); bill("halo", m.x, m.y, 0.34 + Math.sin(T * 4 + m.x) * 0.07, 0.64 / 64, 0, 1, 1, c[0], c[1], c[2], 0.55); }
   for (const p of PROPS) bill("halo", p.x, p.y, p.h + p.r, (p.r * (p.red ? 2.4 : 4)) / 64, 0, 1, 1, 1, p.red ? 0.28 : 0.93, p.red ? 0.34 : 0.84, p.red ? 0.22 : 0.4);
@@ -1684,6 +1746,10 @@ function drawHUD() {
     cx.font = `800 ${sz}px "Baloo 2", "Arial Rounded MT Bold", sans-serif`; cx.textAlign = "center"; cx.textBaseline = "middle";
     cx.lineJoin = "round"; cx.lineWidth = 8 * hs; cx.strokeStyle = "#3d0a24"; cx.strokeText(w.text, 0, 0);
     cx.fillStyle = "#ffd27a"; cx.fillText(w.text, 0, 0);
+    if (w.sub) {
+      cx.font = `800 ${Math.round(22 * hs * Math.min(1, pop))}px "Baloo 2", "Arial Rounded MT Bold", sans-serif`;
+      cx.lineWidth = 6 * hs; cx.strokeText(w.sub, 0, sz * 0.82); cx.fillStyle = w.sub.startsWith("COMBO") ? "#ff8fc4" : "#a8f08a"; cx.fillText(w.sub, 0, sz * 0.82);
+    }
     cx.restore();
   }
   // coins, under the buttons at the top right
