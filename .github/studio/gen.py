@@ -77,14 +77,25 @@ def run_one(job, item, k, key):
             "finish": [c.get("finishReason") for c in res.get("candidates", [])], "feedback": res.get("promptFeedback")}
 
 
+def fatal(msg):
+    """Stop the run, leaving the reason where Claude can read it (the studio branch and a check annotation)."""
+    OUT.mkdir(exist_ok=True)
+    (OUT / "fatal.txt").write_text(msg)
+    print(f"::error::{msg}", flush=True)
+    sys.exit(1)
+
+
 def main():
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key:
-        sys.exit("GEMINI_API_KEY secret is not set: add it under Settings > Secrets and variables > Actions")
-    job = json.loads(os.environ["JOB"])
+        fatal("GEMINI_API_KEY secret is not set: add it under Settings > Secrets and variables > Actions")
+    try:
+        job = json.loads(os.environ["JOB"])
+    except Exception as e:
+        fatal(f"the job is not valid JSON: {e}")
     tasks = [(it, k) for it in job["items"] for k in range(int(it.get("n", 1)))]
     if len(tasks) > MAX_OUTPUTS:
-        sys.exit(f"{len(tasks)} generations asked for; the limit is {MAX_OUTPUTS} per run")
+        fatal(f"{len(tasks)} generations asked for; the limit is {MAX_OUTPUTS} per run")
     OUT.mkdir(exist_ok=True)
     (OUT / "job.json").write_text(json.dumps(job, indent=2))
     log, failed = [], 0
@@ -97,7 +108,7 @@ def main():
                 failed += 1; i, k = futs[f]; log.append({"id": i, "k": k, "error": str(e)}); print("FAILED", i, k, str(e)[:1500], flush=True)
     (OUT / "log.json").write_text(json.dumps(sorted(log, key=lambda r: (r["id"], r["k"])), indent=2))
     if failed == len(tasks):
-        sys.exit("every generation failed (see log above)")
+        fatal("every generation failed: " + "; ".join(r.get("error", "")[:400] for r in log[:3]))
 
 
 if __name__ == "__main__":
