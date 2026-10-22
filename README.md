@@ -1,12 +1,14 @@
 # Luko: playtest build
 
-Current version: **v0.17**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
+Current version: **v0.18**. The version shows at the top of the start screen; tell us which one you played. What changed in each version, and why, is tracked in the game design doc's change log.
 
 A free game for kids (about 2nd grade) about how the body learns to fight germs. You play Luko, a clay white blood cell who gulps germs and learns their shapes so the body is ready next time.
 
 **Play:** open the GitHub Pages link for this repo on a phone or tablet (upright or sideways), or on a computer.
 
 **Full screen:** on Android, iPad and computers, tap the full-screen button at the top right (phones and tablets go full screen when you tap Play). iPhone Safari doesn't let web pages hide its address bar, so on iPhone tap Share, then **Add to Home Screen**, and open Luko from the new icon. It runs full screen from there.
+
+A short intro film plays when you start a new run (tap Skip to jump in; Watch the intro on the start screen plays it again).
 
 ## How to play
 - Touch the screen and slide to swim (arrow keys or WASD on a computer).
