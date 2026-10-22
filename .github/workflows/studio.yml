@@ -1,0 +1,50 @@
+# Luko studio: generate images (or music) with the Gemini API from a job written by Claude.
+# Started with `gh workflow run studio.yml --json` (input: job). Results are committed to the `studio` branch
+# under runs/<run id>/ and also kept as a run artifact for 14 days. Needs the GEMINI_API_KEY repository secret.
+name: Studio (Gemini)
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job JSON (see .github/studio/README.md)"
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: studio
+  cancel-in-progress: false
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          JOB: ${{ inputs.job }}
+        run: python3 .github/studio/gen.py
+      - name: Save to the studio branch
+        if: always()
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          [ -d out ] || exit 0
+          git config user.name "luko-studio"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin studio >/dev/null; then
+            git fetch -q origin studio:studio && git worktree add -q ../studio studio
+          else
+            git worktree add -q --detach ../studio && (cd ../studio && git checkout -q --orphan studio && git rm -rfq . )
+          fi
+          mkdir -p "../studio/runs/$RUN_ID" && cp -r out/. "../studio/runs/$RUN_ID/"
+          cd ../studio && git add runs && git commit -qm "studio run $RUN_ID" && git push -q origin studio
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-${{ github.run_id }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: ignore
