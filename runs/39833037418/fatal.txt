@@ -1,0 +1,1 @@
+GEMINI_API_KEY secret is not set: add it under Settings > Secrets and variables > Actions
