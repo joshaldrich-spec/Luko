@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "fullscreen",
   "orientation": "any",
-  "background_color": "#05131c",
-  "theme_color": "#05131c",
+  "background_color": "#22101a",
+  "theme_color": "#22101a",
   "icons": [
     {
       "src": "icon-192.png",
